@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">HitomiExplorer</string>
+
+    <string name="action_settings">Settings</string>
+
+    <!-- List Status Title -->
+    <string name="title_recently_added">Recently Added</string>
+</resources>
