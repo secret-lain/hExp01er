@@ -1,21 +1,30 @@
 package app.hitomila;
 
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.Toolbar;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import com.mikepenz.materialdrawer.Drawer;
 import com.mikepenz.materialdrawer.DrawerBuilder;
-import app.hitomila.common.hitomiWebView;
+import app.hitomila.common.HitomiWebView;
+import app.hitomila.common.WebViewLoadCompletedCallback;
+import app.hitomila.common.hitomi.IndexData;
+import app.hitomila.common.hitomi.hitomiData;
 
-public class MainActivity extends AppCompatActivity {
-    hitomiWebView view = hitomiWebView.getInstance();
+public class IndexActivity extends AppCompatActivity {
+    HitomiWebView view = HitomiWebView.getInstance();
     Drawer navigationDrawer;
+    RecyclerView recyclerView;
+    RecyclerViewAdapter adapter;
+    ProgressBar loadingProgress;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -30,14 +39,29 @@ public class MainActivity extends AppCompatActivity {
                         //pass your items here
                 )
                 .build();
-
-        setCustomActionbar();
-
-        //navigationDrawer.getActionBarDrawerToggle().setDrawerIndicatorEnabled(true);
-        //view.loadUrl("https://hitomi.la");
+        initCustomActionbar();
+        initRecyclerView();
+        initView();
+        view.loadUrl("https://hitomi.la/index-all-1.html", webViewCallback);
     }
 
-    private void setCustomActionbar(){
+    @Override
+    protected void onDestroy() {
+        view.clear();
+        super.onDestroy();
+    }
+
+    private void initView(){
+        loadingProgress = (ProgressBar)findViewById(R.id.loadingProgressBar);
+    }
+
+    private void initRecyclerView(){
+        recyclerView = (RecyclerView)findViewById(R.id.indexRecyclerView);
+        adapter = new RecyclerViewAdapter(this);//DataSet 연결
+        recyclerView.setAdapter(adapter);
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+    }
+    private void initCustomActionbar(){
         ActionBar actionbar = getSupportActionBar();
 
         //Actionbar의 속성 설정
@@ -71,4 +95,25 @@ public class MainActivity extends AppCompatActivity {
 
         actionbar.setCustomView(mCustomView, params);
     }
+
+    private WebViewLoadCompletedCallback webViewCallback = new WebViewLoadCompletedCallback() {
+        @Override
+        public void onCompleted(final hitomiData data) {
+            if(data instanceof IndexData){
+                adapter.setData((IndexData) data);
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        loadingProgress.setVisibility(View.GONE);
+                        adapter.notifyDataSetChanged();
+                    }
+                });
+            }
+        }
+
+        @Override
+        public void onStart() {
+            loadingProgress.setVisibility(View.VISIBLE);
+        }
+    };
 }

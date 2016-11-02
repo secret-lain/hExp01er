@@ -5,14 +5,14 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
-        android:name=".common.hitomiApplication"
+        android:name=".common.HitomiApplication"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
         <activity
-            android:name=".MainActivity"
+            android:name=".IndexActivity"
             android:theme="@style/MainActivityTheme">
             <intent-filter>
                 <category android:name="android.intent.category.LAUNCHER" />

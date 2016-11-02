@@ -5,4 +5,12 @@
 
     <!-- List Status Title -->
     <string name="title_recently_added">Recently Added</string>
+
+    <!-- Value Object Data
+    <string name="doujinshi">동인지</string>
+    <string name="manga">망가</string>
+    <string name="artistCG">아티스트CG</string>
+    <string name="gameCG">게임CG</string>
+    -->
+
 </resources>
