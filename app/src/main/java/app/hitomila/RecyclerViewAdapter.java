@@ -1,6 +1,7 @@
 package app.hitomila;
 
 import android.content.Context;
+import android.content.Intent;
 import android.support.v7.widget.CardView;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
@@ -13,13 +14,14 @@ import android.widget.TextView;
 import com.bumptech.glide.Glide;
 
 import app.hitomila.common.hitomi.IndexData;
+import app.hitomila.services.DownloadService;
 
 /**
  * Created by admin on 2016-11-01.
  */
 
 public class RecyclerViewAdapter extends RecyclerView.Adapter<RecyclerViewAdapter.ViewHolder> {
-    Context appContext;
+    Context mContext;
 
     //Inflate 받은 부분에서 위젯별 할당
     public class ViewHolder extends RecyclerView.ViewHolder{
@@ -43,7 +45,7 @@ public class RecyclerViewAdapter extends RecyclerView.Adapter<RecyclerViewAdapte
     IndexData.node[] dataSet;
 
     public RecyclerViewAdapter(Context mContext){
-        appContext = mContext;
+        this.mContext = mContext;
     }
 
     public void setData(IndexData dataSet){
@@ -61,12 +63,25 @@ public class RecyclerViewAdapter extends RecyclerView.Adapter<RecyclerViewAdapte
 
     //Listener등 기능삽입
     @Override
-    public void onBindViewHolder(ViewHolder holder, int position) {
+    public void onBindViewHolder(ViewHolder holder, final int position) {
         holder.titleTextView.setText(dataSet[position].title);
         holder.languageTextView.setText(dataSet[position].mangaLangugae);
         holder.typeTextView.setText(dataSet[position].type);
-        Glide.with(appContext).load(dataSet[position].thumbnailUrl).override(150, 200)
+        //글라이드는 비동기로 섬네일을 부른뒤, 리사이징해서(는 안함) 전달한다.
+        Glide.with(mContext).load(dataSet[position].thumbnailUrl)//.override(150, 200)
                 .into(holder.thumbNailView);
+
+        holder.cardView.setLongClickable(true);
+        holder.cardView.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View view) {
+                Intent intent = new Intent(mContext, DownloadService.class);
+                intent.putExtra("galleryUrl", dataSet[position].plainUrl);
+
+                mContext.startService(intent);
+                return true;
+            }
+        });
     }
 
     @Override

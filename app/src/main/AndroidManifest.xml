@@ -20,6 +20,8 @@
                 <action android:name="android.intent.action.MAIN" />
             </intent-filter>
         </activity>
+
+        <service android:name=".services.DownloadService"/>
     </application>
 
 </manifest>

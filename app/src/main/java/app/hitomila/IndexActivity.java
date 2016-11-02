@@ -11,14 +11,21 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.mikepenz.materialdrawer.Drawer;
 import com.mikepenz.materialdrawer.DrawerBuilder;
 import app.hitomila.common.HitomiWebView;
 import app.hitomila.common.WebViewLoadCompletedCallback;
+import app.hitomila.common.exception.wrongHitomiDataException;
 import app.hitomila.common.hitomi.IndexData;
 import app.hitomila.common.hitomi.hitomiData;
 
+
+/**
+ * 리스트를 보여주는 액티비티, 메인액티비티이다.
+ * 초기화면은 Recently Added, 추후 언어별, 태그(1개)별, 좋아요버튼별 등등 으로 꾸밀 수 있게끔 해둠
+ */
 public class IndexActivity extends AppCompatActivity {
     HitomiWebView view = HitomiWebView.getInstance();
     Drawer navigationDrawer;
@@ -31,6 +38,7 @@ public class IndexActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        //오픈소스인 네비게이션 툴바를 불러온다.
         navigationDrawer = new DrawerBuilder()
                 .withActivity(this)
                 .withTranslucentStatusBar(false)
@@ -42,6 +50,9 @@ public class IndexActivity extends AppCompatActivity {
         initCustomActionbar();
         initRecyclerView();
         initView();
+
+        //초기 접속은 이쪽으로. 다되면 리사이클러뷰를 소환
+        //view.loadUrl("https://hitomi.la/reader/992458.html", webViewCallback);
         view.loadUrl("https://hitomi.la/index-all-1.html", webViewCallback);
     }
 
@@ -51,10 +62,12 @@ public class IndexActivity extends AppCompatActivity {
         super.onDestroy();
     }
 
+    //여기서 뷰의 리스너나 할당을 하자
     private void initView(){
         loadingProgress = (ProgressBar)findViewById(R.id.loadingProgressBar);
     }
 
+    //왜인지 모르지만 runOnUiThread가 안먹혀
     private void initRecyclerView(){
         recyclerView = (RecyclerView)findViewById(R.id.indexRecyclerView);
         adapter = new RecyclerViewAdapter(this);//DataSet 연결
@@ -97,8 +110,11 @@ public class IndexActivity extends AppCompatActivity {
     }
 
     private WebViewLoadCompletedCallback webViewCallback = new WebViewLoadCompletedCallback() {
+
+        //index 페이지 데이터 송수신 완료, 파싱완료 후 실행됨
         @Override
         public void onCompleted(final hitomiData data) {
+            try {
             if(data instanceof IndexData){
                 adapter.setData((IndexData) data);
                 runOnUiThread(new Runnable() {
@@ -108,6 +124,11 @@ public class IndexActivity extends AppCompatActivity {
                         adapter.notifyDataSetChanged();
                     }
                 });
+            } else
+                throw new wrongHitomiDataException("IndexActivity", "index 페이지 송신 완료 -> indexData가 아님");
+            } catch (wrongHitomiDataException e) {
+                Toast.makeText(IndexActivity.this, "수신한 데이터 타입에 문제가 있습니다" , Toast.LENGTH_SHORT).show();
+                e.printStackTrace();
             }
         }
 
