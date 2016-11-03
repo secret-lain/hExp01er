@@ -4,13 +4,16 @@ import android.content.Context;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.Toast;
 
-import java.util.LinkedList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import app.hitomila.common.exception.htmlParsingException;
 import app.hitomila.common.hitomi.IndexData;
+import app.hitomila.common.hitomi.ReaderData;
 import app.hitomila.common.hitomi.hitomiData;
+import app.hitomila.services.DownloadServiceDataParser;
 
 /**
  * Created by admin on 2016-11-01.
@@ -87,9 +90,9 @@ public class HitomiWebView {
                         break;
                     //reader
                     case 2:
+                        getReaderData(html);
                         break;
                 }
-
 
                 callback.onCompleted(resultData);
                 callback = null;
@@ -106,7 +109,7 @@ public class HitomiWebView {
                     "\"[^\\r\\n]*[\\r\\n].*src=\"([^\"]*)" +
                     "(?:[^\\r\\n]*[\\r\\n]){2,4}.*html\">([^<]*)" +
                     "(?:[^\\r\\n]*[\\r\\n]){1,50}.*Language<\\/td><td>([^\\r\\n]*)";
-            Matcher matcher = Pattern.compile(indexCrawlRegex).matcher(html);
+            Matcher matcher = DownloadServiceDataParser.getMatcher(indexCrawlRegex, html);
 
 
             while(matcher.find()){
@@ -117,6 +120,45 @@ public class HitomiWebView {
                 String lang = matcher.group(5);
 
                 result.add(title, type, lang, plainUrl, thumbnailUrl);
+            }
+        }
+
+        //이미 Javascript가 전부 실행된 후의 데이터이기 때문에 이미지출력 부분도 포함
+        private void getReaderData(String html){
+            String titleRegex = "<title>([^|]*)";
+            String imageRegex = "(?:<div class=\"img-url\">)(.*)(?:<\\/div>)";
+            String getPrefixRegex = "comicImages[^>]*.*src=\"\\/\\/([^\"]*).hitomi.la";
+
+
+            String title;
+            String prefix;
+
+            try{
+                Matcher matcher = DownloadServiceDataParser.getMatcher(titleRegex, html);
+                if(matcher.find())
+                    title = matcher.group(1);
+                else throw new htmlParsingException("getReaderData", "titleMatching");
+                title = title.trim();
+
+                matcher = DownloadServiceDataParser.getMatcher(getPrefixRegex, html);
+                if(matcher.find())
+                    prefix = matcher.group(1);
+                else throw new htmlParsingException("getReaderData", "prefixGetting");
+
+                resultData = new ReaderData(title);
+                ReaderData resultReaderData = (ReaderData) resultData;
+
+                //이미지 데이터는 카운팅, 파싱, 접두사 적용을 한번에 실시
+                matcher = DownloadServiceDataParser.getMatcher(imageRegex, html);
+                while(matcher.find()){
+                    String imageUrl = matcher.group(1).replaceFirst("(\\/\\/[^\\.]*)","https://" + prefix);
+                    resultReaderData.addImageUrl(imageUrl);
+                }
+                if(resultReaderData.getImageCount() == 0) throw new htmlParsingException("getReaderData", "imageCounting");
+
+            }catch(htmlParsingException e){
+                Toast.makeText(applicationContext, "리더데이터 생성중 문제발생", Toast.LENGTH_SHORT).show();
+                e.printStackTrace();
             }
         }
     }
