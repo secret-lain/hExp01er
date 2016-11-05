@@ -11,24 +11,31 @@ import java.io.IOException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import app.hitomila.services.AsyncDownloadClient;
+import app.hitomila.services.DownloadFileWriteCallback;
+
 /**
  * Created by admin on 2016-10-12.
  */
 
-public class hitomiFileWriter {
+public class HitomiFileWriter {
+    private AsyncDownloadClient downloader;
     private Context parentContext;
     private String filePath;
 
+    //저장될 디렉토리의 경로를 반환
     public String getFilePath(){
         return filePath;
     }
 
-    public hitomiFileWriter(Context mContext, String directoryName){
+    public HitomiFileWriter(Context mContext, ReaderData data){
         parentContext = mContext;
-        filePath = Environment.getExternalStorageDirectory().getPath() + "/hitomi/" + directoryName;
-        directoryWrite(directoryName);
+        downloader = new AsyncDownloadClient(mContext,  data.getImages());
+        filePath = Environment.getExternalStorageDirectory().getPath() + "/hitomi/" + data.title;
+        directoryWrite(data.title);
     }
 
+    //저장될 디렉토리의 이름
     private void directoryWrite(String directoryName){
         File directory = new File(filePath);
         if(!directory.exists()){
@@ -40,6 +47,21 @@ public class hitomiFileWriter {
         }
     }
 
+    public void downloadAll(){
+        downloader.downloadAll(new DownloadFileWriteCallback() {
+            @Override
+            public void notifyPageDownloaded(String imageFileName, byte[] binaryImageData) {
+
+            }
+
+            @Override
+            public void notifyDownloadCompleted() {
+
+            }
+        });
+    }
+
+    //저장될 파일명, 이미지데이터
     public boolean writeImage(String imageName, byte[] binary){
         imageName = parseFileNameToTwoDigits(imageName);
         File image = new File(filePath, imageName);
@@ -59,6 +81,8 @@ public class hitomiFileWriter {
         }
     }
 
+    //정렬순서를 맞추기 위해 한자리수의 경우 2자리수로 바꾼다.
+    //만약 3자리수 이상일 경우? 다시 해결하도록 한다
     private static String parseFileNameToTwoDigits(String filename){
         if(isOneDigit(filename))
             return "0" + filename;

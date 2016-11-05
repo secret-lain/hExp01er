@@ -7,7 +7,7 @@ import android.util.Log;
  */
 
 //잘못된 위치에서 데이터를 쓸때 발생한다. 개발자가 빡대가리인 것이 잘못.
-public class wrongHitomiDataException extends Exception{
+public class wrongHitomiDataException extends RuntimeException{
     public wrongHitomiDataException(String where, String happen){
         Log.e(where, happen);
     }

@@ -7,7 +7,7 @@ import java.util.Queue;
  * Created by admin on 2016-11-02.
  */
 
-public class ReaderData implements hitomiData {
+public class ReaderData implements HitomiData {
     public String title;
     //public String plainUrl;
     public Queue<String> images;

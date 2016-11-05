@@ -12,7 +12,7 @@ import java.util.regex.Pattern;
 import app.hitomila.common.exception.htmlParsingException;
 import app.hitomila.common.hitomi.IndexData;
 import app.hitomila.common.hitomi.ReaderData;
-import app.hitomila.common.hitomi.hitomiData;
+import app.hitomila.common.hitomi.HitomiData;
 import app.hitomila.services.DownloadServiceDataParser;
 
 /**
@@ -21,7 +21,7 @@ import app.hitomila.services.DownloadServiceDataParser;
 public class HitomiWebView {
     private static HitomiWebView ourInstance;
     public static HitomiWebView getInstance() {
-        return ourInstance;
+        return new HitomiWebView();
     }
 
     private static Context applicationContext;
@@ -58,8 +58,15 @@ public class HitomiWebView {
     }
 
     WebViewLoadCompletedCallback callback;
-    public void loadUrl(String url, WebViewLoadCompletedCallback _callback){
-        webview.loadUrl(url);
+    public void loadUrl(final String url, WebViewLoadCompletedCallback _callback){
+        clear();
+        this.webview.post(new Runnable() {
+            @Override
+            public void run() {
+                webview.loadUrl(url);
+            }
+        });
+
         callback = _callback;
         callback.onStart();
     }
@@ -74,7 +81,7 @@ public class HitomiWebView {
 
     class MyJavaScriptInterface
     {
-        hitomiData resultData = null;
+        HitomiData resultData = null;
         @JavascriptInterface
         @SuppressWarnings("unused")
         public void processHTML(String html, int result)
@@ -129,17 +136,20 @@ public class HitomiWebView {
             String imageRegex = "(?:<div class=\"img-url\">)(.*)(?:<\\/div>)";
             String getPrefixRegex = "comicImages[^>]*.*src=\"\\/\\/([^\"]*).hitomi.la";
 
-
             String title;
             String prefix;
 
             try{
                 Matcher matcher = DownloadServiceDataParser.getMatcher(titleRegex, html);
+                //작품 타이틀을 찾는다. 이전 결과에서 다시 찾아올 수 있지만
+                //결합성을 낮추기 위해 이렇게 해보았다.
                 if(matcher.find())
                     title = matcher.group(1);
                 else throw new htmlParsingException("getReaderData", "titleMatching");
                 title = title.trim();
 
+                //접두사를 찾는다. javascript 적용이 끝난 뒤 변환된 preload, 현재 img src를 통해
+                //찾는다. 편법이긴 하지만 HTML 특성상 소스에서 적용되지 않으면 화면에 표시되지 않는다.
                 matcher = DownloadServiceDataParser.getMatcher(getPrefixRegex, html);
                 if(matcher.find())
                     prefix = matcher.group(1);
@@ -151,7 +161,7 @@ public class HitomiWebView {
                 //이미지 데이터는 카운팅, 파싱, 접두사 적용을 한번에 실시
                 matcher = DownloadServiceDataParser.getMatcher(imageRegex, html);
                 while(matcher.find()){
-                    String imageUrl = matcher.group(1).replaceFirst("(\\/\\/[^\\.]*)","https://" + prefix);
+                    String imageUrl = matcher.group(1).replaceFirst("(//[^\\.]*)","https://" + prefix);
                     resultReaderData.addImageUrl(imageUrl);
                 }
                 if(resultReaderData.getImageCount() == 0) throw new htmlParsingException("getReaderData", "imageCounting");
@@ -160,6 +170,8 @@ public class HitomiWebView {
                 Toast.makeText(applicationContext, "리더데이터 생성중 문제발생", Toast.LENGTH_SHORT).show();
                 e.printStackTrace();
             }
+            //여기까지 거쳤으면 readerData의 정보가 전부 차게 된다.
+            //정보는 title(디렉토리 생성용), Queue<String> imageList(다운로드 접근용) 이다.
         }
     }
 }

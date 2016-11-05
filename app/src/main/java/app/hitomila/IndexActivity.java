@@ -1,6 +1,5 @@
 package app.hitomila;
 
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
@@ -11,7 +10,6 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.mikepenz.materialdrawer.Drawer;
 import com.mikepenz.materialdrawer.DrawerBuilder;
@@ -19,7 +17,7 @@ import app.hitomila.common.HitomiWebView;
 import app.hitomila.common.WebViewLoadCompletedCallback;
 import app.hitomila.common.exception.wrongHitomiDataException;
 import app.hitomila.common.hitomi.IndexData;
-import app.hitomila.common.hitomi.hitomiData;
+import app.hitomila.common.hitomi.HitomiData;
 
 
 /**
@@ -113,9 +111,9 @@ public class IndexActivity extends AppCompatActivity {
 
         //index 페이지 데이터 송수신 완료, 파싱완료 후 실행됨
         @Override
-        public void onCompleted(final hitomiData data) {
-            try {
-            if(data instanceof IndexData){
+        public void onCompleted(final HitomiData data) {
+
+            if(data instanceof IndexData) {
                 adapter.setData((IndexData) data);
                 runOnUiThread(new Runnable() {
                     @Override
@@ -124,12 +122,9 @@ public class IndexActivity extends AppCompatActivity {
                         adapter.notifyDataSetChanged();
                     }
                 });
-            } else
-                throw new wrongHitomiDataException("IndexActivity", "index 페이지 송신 완료 -> indexData가 아님");
-            } catch (wrongHitomiDataException e) {
-                Toast.makeText(IndexActivity.this, "수신한 데이터 타입에 문제가 있습니다" , Toast.LENGTH_SHORT).show();
-                e.printStackTrace();
             }
+            else
+                throw new wrongHitomiDataException("IndexActivity", "index 페이지 수신 완료 -> indexData가 아님");
         }
 
         @Override

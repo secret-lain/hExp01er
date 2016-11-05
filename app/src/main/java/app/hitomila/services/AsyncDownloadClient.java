@@ -10,8 +10,8 @@ import java.util.Queue;
 
 import app.hitomila.common.HitomiWebView;
 import app.hitomila.common.WebViewLoadCompletedCallback;
-import app.hitomila.common.hitomi.hitomiData;
-import app.hitomila.common.hitomi.hitomiFileWriter;
+import app.hitomila.common.hitomi.HitomiData;
+import app.hitomila.common.hitomi.HitomiFileWriter;
 import cz.msebera.android.httpclient.Header;
 
 /**
@@ -19,71 +19,89 @@ import cz.msebera.android.httpclient.Header;
  */
 
 public class AsyncDownloadClient extends AsyncHttpClient {
+    private final String TAG = "ADownload::";
     private Context mContext;
+    private final Queue<String> imageUrlList;
     private String[] allowedContentTypes = new String[]{"image/png", "image/jpeg", "image/gif"};
 
-    public AsyncDownloadClient(Context context){
+    public AsyncDownloadClient(Context context, Queue<String> imageList) {
         mContext = context;
+        imageUrlList = imageList;
     }
 
-    /*public void download(String readerUrl){
+    //맨앞 한장만 받는다. 쓸일이 있을지는 잘
+    public byte[] downloadFirst() {
         HitomiWebView webView = HitomiWebView.getInstance();
-        final Queue<String> imageList = null;
+        final byte[][] result = new byte[1][];
 
-        webView.loadUrl(readerUrl, new WebViewLoadCompletedCallback() {
+        //TODO Notification이 없어도 될까?
+
+        get(imageUrlList.peek(), new BinaryHttpResponseHandler(allowedContentTypes) {
             @Override
-            public void onCompleted(hitomiData data) {
-                imageList = DownloadServiceDataParser.extractImageList(responseBody)
+            public void onSuccess(int statusCode, Header[] headers, byte[] binaryData) {
+                Log.d(TAG + "first", this.getRequestURI().toString() + " download completed");
+
+                result[0] = binaryData;
             }
 
             @Override
-            public void onStart() {
-
+            public void onFailure(int statusCode, Header[] headers, byte[] binaryData, Throwable error) {
+                Log.d(TAG + "::first", this.getRequestURI().toString() + " download FAILED\n" +
+                        "statusCode : " + statusCode + ", error : " + error.getMessage());
             }
         });
 
-        final String mangaTitle = hitomiParser.parseTitleFromReader(responseBody);
-        final hitomiFileWriter writer = new hitomiFileWriter(mContext, mangaTitle);
-        if(isInterrupted == true)
-            isInterrupted = false;
+        return result[0];
+    }
 
-        callback.initNotification(mangaTitle, imageList.size(), notificationID);
-        //최초에 maxConnection 만큼 get request를 일단 던진다. 그 이후에는 재귀적호출. (계속 max유지)
-        final int[] completedSemaphore = {getMaxConnections()};
-        for(int i = 0 ; i < getMaxConnections() ; i++){
-            get(imageList.poll() , new BinaryHttpResponseHandler(allowedContentTypes) {
+
+    private boolean isInterrupted = false;
+    public void interrupt(){
+        isInterrupted = true;
+    }
+    public void downloadAll(final DownloadFileWriteCallback callback) {
+        //쓰레드는 개인이 설정할 수 없다. 코드상에서만 구현한다.
+        final int threadCount = 5;
+        final int[] semaphore = {threadCount};
+        for(int i = 0 ; i < threadCount ; i++){
+            get(imageUrlList.poll(), new BinaryHttpResponseHandler(allowedContentTypes) {
                 @Override
                 public void onSuccess(int statusCode, Header[] headers, byte[] binaryData) {
-                    Log.d(TAG+"::download", this.getRequestURI().toString() + " download completed");
-                    String fileName = hitomiParser.getImageNameFromRequestURI(this.getRequestURI().toString());
-                    if(!isInterrupted && writer.writeImage(fileName,binaryData))
-                        callback.notifyPageDownloaded(notificationID);
+                    Log.d(TAG + "download", this.getRequestURI().toString() + " download completed");
+                    if (!isInterrupted)
+                        callback.notifyPageDownloaded(
+                                extractImageNameFromUrl(this.getRequestURI().toString()),binaryData);
 
-                    if(!imageList.isEmpty()){
-                        try {
-                            Thread.sleep(500);
+                    //다운로드 받아야할 img src가 남아있으면 돌린다.
+                    if(!imageUrlList.isEmpty()){
+                        try{
+                            Thread.sleep(200);
                             if(!isInterrupted)
-                                get(imageList.poll(), this);
+                                get(imageUrlList.poll(), this);
                         } catch (InterruptedException e) {
                             e.printStackTrace();
                         }
                     } else{
-                        //3개의 커넥션 중 마지막 결과값만 notifyCompleted하기 위함
-                        if(--completedSemaphore[0] <= 0)
-                            callback.notifyDownloadCompleted(notificationID);
+                        //마지막에는 5개가 동시에 데이터를 가져가므로,
+                        //5개의 큐가 전부 isEmpty를 반환한다. 이중 가장 마지막에 도착한 큐만
+                        //notify를 할 수 있게 만든다.
+                        if(--semaphore[0] <= 0)
+                            callback.notifyDownloadCompleted();
                     }
                 }
+
 
                 @Override
                 public void onFailure(int statusCode, Header[] headers, byte[] binaryData, Throwable error) {
                     Log.d(TAG+"::download", this.getRequestURI().toString() + " download FAILED\n" +
                             "statusCode : " + statusCode + ", error : " + error.getMessage());
+                    //TODO 다운로드가 실패했을 경우 중간에 잘라버리는 콜백함수를 구현하면 될듯
                 }
             });
         }
-        //이건 변수 하나 지정해서 notify 하고 해당 notify에서 로그박는걸로.
-        //Log.d("hitomiClient::download", "download process DONE.");
-    }*/
+    }
 
-
+    private String extractImageNameFromUrl(String url){
+        return url;
+    }
 }

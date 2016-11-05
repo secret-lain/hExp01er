@@ -1,17 +1,14 @@
 package app.hitomila.common.hitomi;
 
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import app.hitomila.R;
 
 /**
  * Created by admin on 2016-11-01.
  */
 
-public class IndexData implements hitomiData{
+public class IndexData implements HitomiData {
     public class node{
         public String title;
         public String type;

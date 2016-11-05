@@ -23,64 +23,21 @@ public class DownloadServiceDataParser {
         Matcher matcher = getMatcher(regex, plainGalleryUrl);
 
         if(matcher.find()){
-            return matcher.group(1);
+            return readerDomain + matcher.group(1) + ".html";
         }
         else
             return null;
     }
 
-    //고정값에 대해서는 https://hitomi.la/reader.js
-    public static Queue<String> extractImageList(String responseBody){
-        //TODO response HTML 에서 프리로드쪽이나 현재이미지 쪽 파싱해서 가져오면 됨.
-        throw new RuntimeException();
-        //return null;
-    }
-
-
-    public static boolean checkGallery(String galleryNumber){
+    public static boolean checkInvalidGalleryNumber(String galleryNumber){
         String regex = "[0-9]*";
         if(galleryNumber.matches(regex))
             return true;
         else return false;
     }
 
-    public static String getImageNameFromRequestURI(String requestURI){
-        String extractImageNameRegex = "(?:galleries\\/\\d+\\/)(.*)";
-        Pattern pattern = Pattern.compile(extractImageNameRegex);
-        Matcher match = pattern.matcher(requestURI);
-
-        if(match.find()){
-            return match.group(1);
-        }
-        return null;
-    }
-
-    public static String parseTitleFromReader(String responseBody) {
-        String extractImageNameRegex = "(?:<title>)([^|]*)";
-        Pattern pattern = Pattern.compile(extractImageNameRegex);
-        Matcher match = pattern.matcher(responseBody);
-
-        if(match.find()){
-            return match.group(1);
-        }
-        return null;
-    }
-
-    public static String parseFileNameToTwoDigits(String filename){
-        if(isOneDigit(filename))
-            return "0" + filename;
-        return filename;
-    }
-    private static boolean isOneDigit(String filename){
-        String extractImageNameRegex = "[^\\.]*";
-        Pattern pattern = Pattern.compile(extractImageNameRegex);
-        Matcher match = pattern.matcher(filename);
-
-        if(match.find())
-            if(match.group(0).length() == 1) return true;
-        return false;
-    }
-
+    //가장 뒤의 갤러리 주소를 가져온다.
+    //갤러리 혹은 리더화면에서 가능하다.
     public static String extractGalleryNumberFromAddress(String addr){
         if(addr == null || !addr.contains("hitomi"))
             return null;
