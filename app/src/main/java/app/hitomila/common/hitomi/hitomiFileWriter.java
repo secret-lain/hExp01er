@@ -11,15 +11,16 @@ import java.io.IOException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import app.hitomila.services.AsyncDownloadClient;
 import app.hitomila.services.DownloadFileWriteCallback;
+import app.hitomila.services.DownloadNotifyCallback;
+import app.hitomila.services.ReaderDownloadClient;
 
 /**
  * Created by admin on 2016-10-12.
  */
 
 public class HitomiFileWriter {
-    private AsyncDownloadClient downloader;
+    private ReaderDownloadClient downloader;
     private Context parentContext;
     private String filePath;
 
@@ -30,8 +31,9 @@ public class HitomiFileWriter {
 
     public HitomiFileWriter(Context mContext, ReaderData data){
         parentContext = mContext;
-        downloader = new AsyncDownloadClient(mContext,  data.getImages());
-        filePath = Environment.getExternalStorageDirectory().getPath() + "/hitomi/" + data.title;
+        downloader = new ReaderDownloadClient(mContext,  data.getImages());
+
+        filePath = Environment.getExternalStorageDirectory().getPath() + "/hitomi/" + data.title + "/";
         directoryWrite(data.title);
     }
 
@@ -47,16 +49,18 @@ public class HitomiFileWriter {
         }
     }
 
-    public void downloadAll(){
+    public void downloadAll(final DownloadNotifyCallback callback){
         downloader.downloadAll(new DownloadFileWriteCallback() {
             @Override
             public void notifyPageDownloaded(String imageFileName, byte[] binaryImageData) {
-
+                //이미지파일의 다운로드가 된 경우.
+                writeImage(imageFileName, binaryImageData);
+                callback.notifyPageDownloaded();
             }
 
             @Override
             public void notifyDownloadCompleted() {
-
+                callback.notifyDownloadCompleted();
             }
         });
     }

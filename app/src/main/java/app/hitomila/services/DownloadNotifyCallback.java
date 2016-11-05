@@ -5,6 +5,6 @@ package app.hitomila.services;
  */
 
 public interface DownloadNotifyCallback {
-    void notifyPageDownloaded(int notificationID);
-    void notifyDownloadCompleted(int notificationID);
+    void notifyPageDownloaded();
+    void notifyDownloadCompleted();
 }

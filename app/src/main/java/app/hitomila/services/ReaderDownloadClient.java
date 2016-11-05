@@ -9,24 +9,27 @@ import com.loopj.android.http.BinaryHttpResponseHandler;
 import java.util.Queue;
 
 import app.hitomila.common.HitomiWebView;
-import app.hitomila.common.WebViewLoadCompletedCallback;
-import app.hitomila.common.hitomi.HitomiData;
-import app.hitomila.common.hitomi.HitomiFileWriter;
 import cz.msebera.android.httpclient.Header;
 
 /**
  * Created by admin on 2016-11-02.
  */
 
-public class AsyncDownloadClient extends AsyncHttpClient {
+public class ReaderDownloadClient extends AsyncHttpClient {
     private final String TAG = "ADownload::";
     private Context mContext;
     private final Queue<String> imageUrlList;
     private String[] allowedContentTypes = new String[]{"image/png", "image/jpeg", "image/gif"};
+    private final int CONNECTION = 5;
 
-    public AsyncDownloadClient(Context context, Queue<String> imageList) {
+    public ReaderDownloadClient(Context context, Queue<String> imageList) {
         mContext = context;
         imageUrlList = imageList;
+        this.setTimeout(20000);
+        this.setResponseTimeout(20000);
+        this.setConnectTimeout(20000);
+
+        this.setMaxConnections(CONNECTION);
     }
 
     //맨앞 한장만 받는다. 쓸일이 있을지는 잘
@@ -61,7 +64,7 @@ public class AsyncDownloadClient extends AsyncHttpClient {
     }
     public void downloadAll(final DownloadFileWriteCallback callback) {
         //쓰레드는 개인이 설정할 수 없다. 코드상에서만 구현한다.
-        final int threadCount = 5;
+        final int threadCount = CONNECTION;
         final int[] semaphore = {threadCount};
         for(int i = 0 ; i < threadCount ; i++){
             get(imageUrlList.poll(), new BinaryHttpResponseHandler(allowedContentTypes) {
@@ -70,7 +73,7 @@ public class AsyncDownloadClient extends AsyncHttpClient {
                     Log.d(TAG + "download", this.getRequestURI().toString() + " download completed");
                     if (!isInterrupted)
                         callback.notifyPageDownloaded(
-                                extractImageNameFromUrl(this.getRequestURI().toString()),binaryData);
+                                extractImageNameFromUrl(DownloadServiceDataParser.extractImageName(this.getRequestURI().toString())),binaryData);
 
                     //다운로드 받아야할 img src가 남아있으면 돌린다.
                     if(!imageUrlList.isEmpty()){

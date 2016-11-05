@@ -1,6 +1,5 @@
 package app.hitomila.services;
 
-import android.app.ListActivity;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -9,24 +8,24 @@ import android.app.TaskStackBuilder;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
-import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.IBinder;
 import android.support.annotation.Nullable;
 import android.widget.Toast;
 
+import com.loopj.android.http.AsyncHttpClient;
+import com.loopj.android.http.AsyncHttpResponseHandler;
+
 import java.io.File;
 import java.util.HashMap;
+import java.util.regex.Matcher;
 
 import app.hitomila.R;
-import app.hitomila.common.HitomiWebView;
-import app.hitomila.common.WebViewLoadCompletedCallback;
-import app.hitomila.common.exception.wrongHitomiDataException;
+import app.hitomila.common.exception.htmlParsingException;
 import app.hitomila.common.hitomi.HitomiDownloadingDataObject;
-import app.hitomila.common.hitomi.ReaderData;
-import app.hitomila.common.hitomi.HitomiData;
 import app.hitomila.common.hitomi.HitomiFileWriter;
+import app.hitomila.common.hitomi.ReaderData;
+import cz.msebera.android.httpclient.Header;
 
 /**
  * Created by admin on 2016-11-02.
@@ -53,8 +52,52 @@ public class DownloadService extends Service {
         final String plainGalleryUrl = bundle.getString("galleryUrl");
         final String readerUrl = DownloadServiceDataParser.galleryUrlToReaderUrl(plainGalleryUrl);
 
+        new AsyncHttpClient().get(readerUrl, new AsyncHttpResponseHandler() {
+            int galleryNumber;
+
+            @Override
+            public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
+                galleryNumber = Integer.parseInt(DownloadServiceDataParser.extractGalleryNumberFromAddress(readerUrl));
+                ReaderData data = getReaderData(new String(responseBody));
+
+                HitomiFileWriter fileWriter = new HitomiFileWriter(DownloadService.this, data);
+                Notification.Builder currNotification = initNotification(galleryNumber, fileWriter.getFilePath(), data.title, data.getImageCount());
+                HitomiDownloadingDataObject item = new HitomiDownloadingDataObject(data, currNotification, galleryNumber);
+
+                //재활용을 위해 해시에 넣어둔다.
+                dataSet.put(galleryNumber, item);
+
+                //정상적으로 정보를 수신한 후에는 FileWriter에 정보를 넘긴다
+                //다운로드 큐를 돌리는것과 저장하는것은 FileWriter가 해준다.
+                fileWriter.downloadAll(new DownloadNotifyCallback() {
+                    @Override
+                    public void notifyPageDownloaded() {
+                        dataSet.get(galleryNumber).currentPage += 1;
+                        dataSet.get(galleryNumber).notificationBuilder.setContentText(
+                                dataSet.get(galleryNumber).currentPage + " / " + dataSet.get(galleryNumber).maxPages
+                        );
+
+                        mNotificationManager.notify(galleryNumber, dataSet.get(galleryNumber).notificationBuilder.build());
+                    }
+
+                    @Override
+                    public void notifyDownloadCompleted() {
+                        dataSet.get(galleryNumber).notificationBuilder.setContentText("다운로드 완료")
+                                .setOngoing(false);
+                        mNotificationManager.notify(galleryNumber,dataSet.get(galleryNumber).notificationBuilder.build());
+                    }
+                });
+            }
+
+            @Override
+            public void onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) {
+
+            }
+        });
+
+
         //백그라운드에서 다운로드를 진행한다.
-        new AsyncTask<Void, Void, Boolean>() {
+        /*new AsyncTask<Void, Void, Boolean>() {
 
             int galleryNumber;
 
@@ -66,38 +109,55 @@ public class DownloadService extends Service {
 
             @Override
             protected Boolean doInBackground(Void... voids) {
-                HitomiWebView webview = HitomiWebView.getInstance();
+                *//*리더 값을 가지고 바로 다운로드에 들어간다.
+                * Readerdata는 망가 타이틀과 이미지 뭉치를 가지고 있다.
+                * Notification 데이터도 함께 가지고 있기 위해
+                * HitomiDownloadingDataObject로 다시 래핑한다.
+                * 또한 여러개를 동시에 받을 수 있게 하기 위해
+                * DataSet Hash를 만든다. Hash는 galleyNumber, DataObject로 구성되어있다.
+                * *//*
 
-                webview.loadUrl(readerUrl, new WebViewLoadCompletedCallback() {
+                new SyncHttpClient().get(readerUrl, new AsyncHttpResponseHandler() {
                     @Override
-                    public void onCompleted(HitomiData data) {
-                        //TODO notification 실시간 동작을 위한 DataSet 추가
-                        if (!(data instanceof ReaderData))
-                            throw new wrongHitomiDataException("DownloadService", "reader 페이지 수신 완료 -> readerData가 아님");
+                    public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
+                        ReaderData data = getReaderData(new String(responseBody));
 
-                        ReaderData readerData = (ReaderData) data;
-
-                        HitomiFileWriter fileWriter = new HitomiFileWriter(DownloadService.this, (ReaderData)data);
-                        Notification currNotification = initNotification(galleryNumber, fileWriter.getFilePath(), readerData.title, readerData.getImageCount());
-                        HitomiDownloadingDataObject item = new HitomiDownloadingDataObject((ReaderData)data, currNotification, galleryNumber);
+                        HitomiFileWriter fileWriter = new HitomiFileWriter(DownloadService.this, data);
+                        Notification.Builder currNotification = initNotification(galleryNumber, fileWriter.getFilePath(), data.title, data.getImageCount());
+                        HitomiDownloadingDataObject item = new HitomiDownloadingDataObject(data, currNotification, galleryNumber);
 
                         //재활용을 위해 해시에 넣어둔다.
                         dataSet.put(galleryNumber, item);
 
-
-
                         //정상적으로 정보를 수신한 후에는 FileWriter에 정보를 넘긴다
                         //다운로드 큐를 돌리는것과 저장하는것은 FileWriter가 해준다.
-                        fileWriter.downloadAll();
+                        fileWriter.downloadAll(new DownloadNotifyCallback() {
+                            @Override
+                            public void notifyPageDownloaded() {
+                                dataSet.get(galleryNumber).currentPage += 1;
+                                dataSet.get(galleryNumber).notificationBuilder.setContentText(
+                                        dataSet.get(galleryNumber).currentPage + " / " + dataSet.get(galleryNumber).maxPages
+                                );
 
+                                mNotificationManager.notify(galleryNumber, dataSet.get(galleryNumber).notificationBuilder.build());
+                            }
+
+                            @Override
+                            public void notifyDownloadCompleted() {
+                                dataSet.get(galleryNumber).notificationBuilder.setContentText("다운로드 완료")
+                                        .setOngoing(false);
+                                mNotificationManager.notify(galleryNumber,dataSet.get(galleryNumber).notificationBuilder.build());
+                            }
+                        });
                     }
 
                     @Override
-                    public void onStart() {
-                        //Toast.makeText(DownloadService.this, "다운로드를 시작합니다", Toast.LENGTH_SHORT).show();
-                        String a = "a";
+                    public void onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) {
+
                     }
                 });
+
+
                 return null;
             }
 
@@ -105,7 +165,7 @@ public class DownloadService extends Service {
             protected void onPostExecute(Boolean aBoolean) {
                 super.onPostExecute(aBoolean);
             }
-        }.execute();
+        }.execute();*/
 
 
         return super.onStartCommand(intent, flags, startId);
@@ -119,7 +179,7 @@ public class DownloadService extends Service {
 
     //해당 망가의 진행상황을 확인시켜줄 노티피케이션의 초기화
     //노티피케이션의 고유 ID는 해당 작품의 번호로 한다.(동일 작품을 두번 받지 못하게 하려고)
-    private Notification initNotification(int galleryNumber, String directoryName, String mangaTitle, int maxPages){
+    private Notification.Builder initNotification(int galleryNumber, String directoryName, String mangaTitle, int maxPages){
 
 
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
@@ -131,7 +191,7 @@ public class DownloadService extends Service {
 //        intent.setAction(Intent.ACTION_GET_CONTENT);
 
         TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);
-        stackBuilder.addParentStack(ListActivity.class);
+//        stackBuilder.addParentStack(this.getClass());
         stackBuilder.addNextIntent(intent);
 
         PendingIntent resultPendingIntent = stackBuilder.getPendingIntent(galleryNumber, PendingIntent.FLAG_UPDATE_CURRENT);
@@ -149,41 +209,43 @@ public class DownloadService extends Service {
                 .setContentText("0" + " / " + maxPages);
 
 //        mNotificationManager.notify(item.notificationID, mBuilder.build());
-        return mBuilder.build();
+        return mBuilder;
     }
 
-    public interface notificationCallback {
-        void notifyPageDownloaded(int notificationID);
-        void notifyDownloadCompleted(int notificationID);
+
+    //이미 Javascript가 전부 실행된 후의 데이터이기 때문에 이미지출력 부분도 포함
+    private ReaderData getReaderData(String html){
+        String titleRegex = "<title>([^|]*)";
+        String imageRegex = "(?:<div class=\"img-url\">)(.*)(?:<\\/div>)";
+
+        String title;
+        ReaderData resultData = null;
+        try{
+            Matcher matcher = DownloadServiceDataParser.getMatcher(titleRegex, html);
+            //작품 타이틀을 찾는다. 이전 결과에서 다시 찾아올 수 있지만
+            //결합성을 낮추기 위해 이렇게 해보았다.
+            if(matcher.find())
+                title = matcher.group(1);
+            else throw new htmlParsingException("getReaderData", "titleMatching");
+            title = title.trim();
+
+            resultData = new ReaderData(title);
+
+            //이미지 데이터는 카운팅, 파싱, 접두사 적용을 한번에 실시
+            matcher = DownloadServiceDataParser.getMatcher(imageRegex, html);
+            while(matcher.find()){
+                String imageUrl = matcher.group(1).replaceFirst("(//[^\\.]*)","https://" + DownloadServiceDataParser.prefix);
+                resultData.addImageUrl(imageUrl);
+            }
+            if(resultData.getImageCount() == 0) throw new htmlParsingException("getReaderData", "imageCounting");
+
+        }catch(htmlParsingException e){
+            Toast.makeText(this, "리더데이터 생성중 문제발생", Toast.LENGTH_SHORT).show();
+            e.printStackTrace();
+        }
+        //여기까지 거쳤으면 readerData의 정보가 전부 차게 된다.
+        //정보는 title(디렉토리 생성용), Queue<String> imageList(다운로드 접근용) 이다.
+
+        return resultData;
     }
-
-   /* notificationCallback notificationCallback = new notificationCallback() {
-        @Override
-        public void notifyPageDownloaded(int notificationID) {
-            mangaInformationData item = dataSet.get(notificationID);
-            item.currDownloadedPages += 1;
-            mBuilder
-                    //.setContentIntent(item.fileLocationPendingIntent)
-                    .setContentTitle(item.mangaTitle)
-                    .setContentText(item.currDownloadedPages + " / " + item.maxPages);
-
-            mNotificationManager.notify(item.notificationID, mBuilder.build());
-        }
-
-        @Override
-        public void notifyDownloadCompleted(int notificationID) {
-            mangaInformationData item = dataSet.get(notificationID);
-
-            mBuilder
-                    .setAutoCancel(false)
-                    .setDefaults(Notification.DEFAULT_LIGHTS)
-                    .setPriority(Notification.PRIORITY_LOW)
-                    .setWhen(System.currentTimeMillis())
-                    .setOngoing(false)
-                    .setContentTitle(item.mangaTitle)
-                    .setContentText("Download done - " + item.currDownloadedPages + " / " + item.maxPages);
-
-            mNotificationManager.notify(item.notificationID, mBuilder.build());
-        }
-    };*/
 }
