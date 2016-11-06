@@ -20,6 +20,7 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.regex.Matcher;
 
+import app.hitomila.IndexActivity;
 import app.hitomila.R;
 import app.hitomila.common.exception.htmlParsingException;
 import app.hitomila.common.hitomi.HitomiDownloadingDataObject;
@@ -36,6 +37,7 @@ public class DownloadService extends Service {
     private HashMap<Integer, HitomiDownloadingDataObject> dataSet;
     private Notification.Builder mBuilder;
     private NotificationManager mNotificationManager;
+    private Intent mIntent;
 
     //한번만 실행된다. 그 이후는 바로 onStartCommand.
     @Override
@@ -49,6 +51,7 @@ public class DownloadService extends Service {
     @SuppressWarnings("unchecked")
     public int onStartCommand(Intent intent, int flags, int startId) {
         Bundle bundle = intent.getExtras();
+        mIntent = intent;
         final String plainGalleryUrl = bundle.getString("galleryUrl");
         final String readerUrl = DownloadServiceDataParser.galleryUrlToReaderUrl(plainGalleryUrl);
 
@@ -84,6 +87,7 @@ public class DownloadService extends Service {
                     public void notifyDownloadCompleted() {
                         dataSet.get(galleryNumber).notificationBuilder.setContentText("다운로드 완료")
                                 .setOngoing(false);
+                        Toast.makeText(DownloadService.this, dataSet.get(galleryNumber).title + " 다운로드 완료" ,  Toast.LENGTH_SHORT).show();
                         mNotificationManager.notify(galleryNumber,dataSet.get(galleryNumber).notificationBuilder.build());
                     }
                 });
@@ -91,82 +95,9 @@ public class DownloadService extends Service {
 
             @Override
             public void onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) {
-
+                //TODO 리더페이지에 접근하는 것 부터 실패했을 경우.
             }
         });
-
-
-        //백그라운드에서 다운로드를 진행한다.
-        /*new AsyncTask<Void, Void, Boolean>() {
-
-            int galleryNumber;
-
-            @Override
-            protected void onPreExecute() {
-                galleryNumber = Integer.parseInt(DownloadServiceDataParser.extractGalleryNumberFromAddress(readerUrl));
-                super.onPreExecute();
-            }
-
-            @Override
-            protected Boolean doInBackground(Void... voids) {
-                *//*리더 값을 가지고 바로 다운로드에 들어간다.
-                * Readerdata는 망가 타이틀과 이미지 뭉치를 가지고 있다.
-                * Notification 데이터도 함께 가지고 있기 위해
-                * HitomiDownloadingDataObject로 다시 래핑한다.
-                * 또한 여러개를 동시에 받을 수 있게 하기 위해
-                * DataSet Hash를 만든다. Hash는 galleyNumber, DataObject로 구성되어있다.
-                * *//*
-
-                new SyncHttpClient().get(readerUrl, new AsyncHttpResponseHandler() {
-                    @Override
-                    public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
-                        ReaderData data = getReaderData(new String(responseBody));
-
-                        HitomiFileWriter fileWriter = new HitomiFileWriter(DownloadService.this, data);
-                        Notification.Builder currNotification = initNotification(galleryNumber, fileWriter.getFilePath(), data.title, data.getImageCount());
-                        HitomiDownloadingDataObject item = new HitomiDownloadingDataObject(data, currNotification, galleryNumber);
-
-                        //재활용을 위해 해시에 넣어둔다.
-                        dataSet.put(galleryNumber, item);
-
-                        //정상적으로 정보를 수신한 후에는 FileWriter에 정보를 넘긴다
-                        //다운로드 큐를 돌리는것과 저장하는것은 FileWriter가 해준다.
-                        fileWriter.downloadAll(new DownloadNotifyCallback() {
-                            @Override
-                            public void notifyPageDownloaded() {
-                                dataSet.get(galleryNumber).currentPage += 1;
-                                dataSet.get(galleryNumber).notificationBuilder.setContentText(
-                                        dataSet.get(galleryNumber).currentPage + " / " + dataSet.get(galleryNumber).maxPages
-                                );
-
-                                mNotificationManager.notify(galleryNumber, dataSet.get(galleryNumber).notificationBuilder.build());
-                            }
-
-                            @Override
-                            public void notifyDownloadCompleted() {
-                                dataSet.get(galleryNumber).notificationBuilder.setContentText("다운로드 완료")
-                                        .setOngoing(false);
-                                mNotificationManager.notify(galleryNumber,dataSet.get(galleryNumber).notificationBuilder.build());
-                            }
-                        });
-                    }
-
-                    @Override
-                    public void onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) {
-
-                    }
-                });
-
-
-                return null;
-            }
-
-            @Override
-            protected void onPostExecute(Boolean aBoolean) {
-                super.onPostExecute(aBoolean);
-            }
-        }.execute();*/
-
 
         return super.onStartCommand(intent, flags, startId);
     }
@@ -191,7 +122,8 @@ public class DownloadService extends Service {
 //        intent.setAction(Intent.ACTION_GET_CONTENT);
 
         TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);
-//        stackBuilder.addParentStack(this.getClass());
+        stackBuilder.addParentStack(IndexActivity.class);
+        //stackBuilder.addNextIntentWithParentStack(intent);
         stackBuilder.addNextIntent(intent);
 
         PendingIntent resultPendingIntent = stackBuilder.getPendingIntent(galleryNumber, PendingIntent.FLAG_UPDATE_CURRENT);
@@ -206,9 +138,9 @@ public class DownloadService extends Service {
                 //.setStyle(new Notification.BigTextStyle().bigText("BigText"))
                 .setContentIntent(resultPendingIntent)
                 .setContentTitle(mangaTitle)
-                .setContentText("0" + " / " + maxPages);
+                .setContentText("다운로드 대기중..");
 
-//        mNotificationManager.notify(item.notificationID, mBuilder.build());
+        mNotificationManager.notify(galleryNumber, mBuilder.build());
         return mBuilder;
     }
 

@@ -9,6 +9,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 
 import com.bumptech.glide.Glide;
@@ -75,6 +76,7 @@ public class RecyclerViewAdapter extends RecyclerView.Adapter<RecyclerViewAdapte
         holder.cardView.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
             public boolean onLongClick(View view) {
+                Toast.makeText(mContext, "다운로드를 시작합니다", Toast.LENGTH_SHORT).show();
                 Intent intent = new Intent(mContext, DownloadService.class);
                 intent.putExtra("galleryUrl", dataSet[position].plainUrl);
 

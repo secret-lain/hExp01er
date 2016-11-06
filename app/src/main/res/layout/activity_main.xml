@@ -22,16 +22,37 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
 
-        <android.support.design.widget.FloatingActionButton
-            android:layout_height="wrap_content"
-            android:layout_width="wrap_content"
-            app:layout_anchorGravity="bottom|right"
-            android:src="@android:drawable/ic_input_add"
-            android:layout_marginRight="16dp"
-            android:clickable="true"
-            app:fabSize="mini"
-            android:layout_gravity="bottom|end"
-            android:layout_alignParentBottom="true"
-            android:layout_alignParentEnd="true" />
+        <LinearLayout
+            android:background="#F9F9F9E0"
+            android:alpha="0.8"
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="42dp"
+            android:layout_gravity="bottom|center_vertical">
+
+                <ImageView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:srcCompat="@drawable/ic_keyboard_arrow_left_black_24dp"
+                    android:id="@+id/leftArrowImageView"
+                    android:layout_weight="1" />
+
+                <TextView
+                    android:text="1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/currPageTextView"
+                    android:layout_weight="1"
+                    android:layout_gravity="center"
+                    android:textAlignment="center" />
+
+                <ImageView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:srcCompat="@drawable/ic_keyboard_arrow_right_black_24dp"
+                    android:id="@+id/rightArrowImageView"
+                    android:layout_weight="1" />
+        </LinearLayout>
+
 
 </android.support.design.widget.CoordinatorLayout>

@@ -99,6 +99,7 @@ public class ReaderDownloadClient extends AsyncHttpClient {
                     Log.d(TAG+"::download", this.getRequestURI().toString() + " download FAILED\n" +
                             "statusCode : " + statusCode + ", error : " + error.getMessage());
                     //TODO 다운로드가 실패했을 경우 중간에 잘라버리는 콜백함수를 구현하면 될듯
+                    //TODO HitomiDownloadDataObject에 실패한 페이지 갯수를 적는 란을 만들어서 실패현황을 알려주는 코드도 구현하면 좋을 듯
                 }
             });
         }

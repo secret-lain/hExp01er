@@ -17,12 +17,17 @@
             android:theme="@style/MainActivityTheme">
             <intent-filter>
                 <category android:name="android.intent.category.LAUNCHER" />
-
+                <category android:name="android.intent.category.DEFAULT" />
                 <action android:name="android.intent.action.MAIN" />
             </intent-filter>
         </activity>
 
-        <service android:name=".services.DownloadService"/>
+        <service
+            android:name=".services.DownloadService">
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value=".IndexActivity"/>
+        </service>
     </application>
 
 </manifest>
