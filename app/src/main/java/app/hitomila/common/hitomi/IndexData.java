@@ -17,7 +17,7 @@ public class IndexData implements HitomiData {
         public String mangaLangugae;
 
         public node(String _title, String _type, String _mangaLangugae, String _plainUrl, String _thumbnailUrl){
-            title = _title;
+            title = _title.trim();
             type = parseTypeString(_type);
             mangaLangugae  = parseLanguageString(_mangaLangugae);
             plainUrl = "https://hitomi.la" +  _plainUrl;

@@ -28,6 +28,9 @@
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value=".IndexActivity"/>
         </service>
+        <meta-data
+            android:name="io.fabric.ApiKey"
+            android:value="c7e8421cb5a5a0a5902064f669d892468ea7f773" />
     </application>
 
 </manifest>

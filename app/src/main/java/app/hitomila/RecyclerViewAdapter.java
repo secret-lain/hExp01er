@@ -1,5 +1,6 @@
 package app.hitomila;
 
+import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.support.v7.widget.CardView;
@@ -13,6 +14,11 @@ import android.widget.Toast;
 
 
 import com.bumptech.glide.Glide;
+import com.crashlytics.android.Crashlytics;
+import com.gun0912.tedpermission.PermissionListener;
+import com.gun0912.tedpermission.TedPermission;
+
+import java.util.ArrayList;
 
 import app.hitomila.common.hitomi.IndexData;
 import app.hitomila.services.DownloadService;
@@ -76,11 +82,27 @@ public class RecyclerViewAdapter extends RecyclerView.Adapter<RecyclerViewAdapte
         holder.cardView.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
             public boolean onLongClick(View view) {
-                Toast.makeText(mContext, "다운로드를 시작합니다", Toast.LENGTH_SHORT).show();
-                Intent intent = new Intent(mContext, DownloadService.class);
-                intent.putExtra("galleryUrl", dataSet[position].plainUrl);
+                new TedPermission(mContext)
+                        .setPermissions(Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.INTERNET)
+                        .setDeniedMessage("파일접근권한이 없습니다. 권한을 허용해 주세요.")
+                        .setPermissionListener(new PermissionListener() {
+                            @Override
+                            public void onPermissionGranted() {
+                                if(dataSet[position].plainUrl != null){
+                                    Toast.makeText(mContext, "다운로드를 시작합니다", Toast.LENGTH_SHORT).show();
+                                    Intent intent = new Intent(mContext, DownloadService.class);
+                                    intent.putExtra("galleryUrl", dataSet[position].plainUrl);
+                                    mContext.startService(intent);
+                                }
+                                else Crashlytics.log(dataSet[position].title + ", " + dataSet[position].plainUrl + " download Data error");
+                            }
 
-                mContext.startService(intent);
+                            @Override
+                            public void onPermissionDenied(ArrayList<String> arrayList) {
+                                Toast.makeText(mContext, "권한거부됨\n" + arrayList.toString(), Toast.LENGTH_SHORT).show();
+                            }
+                        })
+                        .check();
                 return true;
             }
         });

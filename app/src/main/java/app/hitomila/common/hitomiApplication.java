@@ -4,9 +4,11 @@ import android.Manifest;
 import android.app.Application;
 import android.widget.Toast;
 
+import com.crashlytics.android.Crashlytics;
 import com.gun0912.tedpermission.PermissionListener;
 import com.gun0912.tedpermission.TedPermission;
 
+import io.fabric.sdk.android.Fabric;
 import java.util.ArrayList;
 
 /**
@@ -17,6 +19,7 @@ public class HitomiApplication extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
+        Fabric.with(this, new Crashlytics());
         HitomiWebView.init(this);
         new TedPermission(this)
                 .setPermissionListener(new PermissionListener() {

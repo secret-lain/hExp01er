@@ -1,5 +1,6 @@
 package app.hitomila;
 
+import android.app.NotificationManager;
 import android.content.Context;
 import android.os.Bundle;
 import android.support.v7.app.ActionBar;
@@ -48,6 +49,7 @@ public class IndexActivity extends AppCompatActivity {
     RecyclerViewAdapter adapter;
     ProgressBar loadingProgress;
     TextView actionBarTitle;
+    TextView currPageTextView;
     LinearLayoutManager layoutManager;
 
     int currIndex = 1;
@@ -80,15 +82,14 @@ public class IndexActivity extends AppCompatActivity {
                     public boolean onItemClick(View view, int position, IDrawerItem drawerItem) {
                         switch(position){
                             case 1:
-                                currLocation = "https://hitomi.la/index-all-";
-                                actionBarTitle.setText("Recently Added");
-                                currIndex = 1;
+                                setIndex("https://hitomi.la/index-all-", "Recently Added");
                                 break;
                             case 2:
-                                currLocation = "https://hitomi.la/index-korean-";
-                                actionBarTitle.setText("Korean - Recently Added");
-                                currIndex = 1;
+                                setIndex("https://hitomi.la/index-korean-", "Korean - Recently Added");
                                 break;
+                            case 3:
+                                setIndex("https://hitomi.la/index-japanese-", "Japanese - Recently Added");
+
                             default:
                                 return false;
                         }
@@ -109,8 +110,19 @@ public class IndexActivity extends AppCompatActivity {
     }
 
     @Override
-    protected void onDestroy() {
+    protected void onDestroy(){
+        //
+        //((NotificationManager)getSystemService(NOTIFICATION_SERVICE)).cancelAll();
+        HitomiWebView.getInstance().clear();
         super.onDestroy();
+    }
+
+    private void setIndex(String locationString, String title){
+        currLocation = locationString;
+        actionBarTitle.setText(title);
+
+        currIndex = 1;
+        currPageTextView.setText(Integer.toString(currIndex));
     }
 
     private void connectUrl(String url){
@@ -132,11 +144,13 @@ public class IndexActivity extends AppCompatActivity {
                 if(DownloadServiceDataParser.prefix.equals("")){
                     String firstGalleryUrl = data.getDatas()[0].plainUrl;
                     String firstReaderUrl = DownloadServiceDataParser.galleryUrlToReaderUrl(firstGalleryUrl);
-                    HitomiWebView.getInstance().loadUrl(firstReaderUrl, new WebViewLoadCompletedCallback() {
+                    final HitomiWebView webview = HitomiWebView.getInstance();
+                    webview.loadUrl(firstReaderUrl, new WebViewLoadCompletedCallback() {
                         @Override
                         public void onCompleted(final String prefix) {
                             if(prefix.equals(""))
                                 throw new wrongHitomiDataException("prefix초기화", "왜 안됐지?");
+
                             runOnUiThread(new Runnable() {
                                 @Override
                                 public void run() {
@@ -205,7 +219,7 @@ public class IndexActivity extends AppCompatActivity {
     private void initView(){
         loadingProgress = (ProgressBar)findViewById(R.id.loadingProgressBar);
 
-        final TextView currPageTextView = (TextView)findViewById(R.id.currPageTextView);
+        currPageTextView = (TextView)findViewById(R.id.currPageTextView);
         currPageTextView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -216,14 +230,18 @@ public class IndexActivity extends AppCompatActivity {
                         .input("숫자를 입력하세요", "",new MaterialDialog.InputCallback() {
                             @Override
                             public void onInput(MaterialDialog dialog, CharSequence input) {
-                                int inputedPageNumber = Integer.parseInt(input.toString());
-                                if(inputedPageNumber >= 1){
-                                    currIndex = inputedPageNumber;
-                                    currPageTextView.setText(Integer.toString(currIndex));
-                                    connectUrl(currLocation + currIndex + suffix);
+                                try{
+                                    int inputedPageNumber = Integer.parseInt(input.toString());
+                                    if(inputedPageNumber >= 1){
+                                        currIndex = inputedPageNumber;
+                                        currPageTextView.setText(Integer.toString(currIndex));
+                                        connectUrl(currLocation + currIndex + suffix);
+                                    }
+                                    else
+                                        Toast.makeText(mContext, "잘못된 숫자형식입니다", Toast.LENGTH_SHORT).show();
+                                }catch(NumberFormatException e){
+                                    //딱히 뭘 안해도 되는 구간이다.
                                 }
-                                else
-                                    Toast.makeText(mContext, "잘못된 숫자형식입니다", Toast.LENGTH_SHORT).show();
                             }
                         }).show();
             }
