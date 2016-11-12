@@ -62,11 +62,16 @@ public class HitomiFileWriter {
             public void notifyDownloadCompleted() {
                 callback.notifyDownloadCompleted();
             }
+
+            @Override
+            public void notifyDownloadFailed() {
+                callback.notifyDownloadFailed();
+            }
         });
     }
 
     //저장될 파일명, 이미지데이터
-    public boolean writeImage(String imageName, byte[] binary){
+    public synchronized boolean writeImage(String imageName, byte[] binary){
         imageName = parseFileNameToTwoDigits(imageName);
         File image = new File(filePath, imageName);
         FileOutputStream oStream = null;

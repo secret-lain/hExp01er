@@ -64,6 +64,8 @@ public class ReaderDownloadClient extends AsyncHttpClient {
     }
     public void downloadAll(final DownloadFileWriteCallback callback) {
         //쓰레드는 개인이 설정할 수 없다. 코드상에서만 구현한다.
+        if(isInterrupted)
+            isInterrupted = false;
         final int threadCount = CONNECTION;
         final int[] semaphore = {threadCount};
         for(int i = 0 ; i < threadCount ; i++){
@@ -98,6 +100,9 @@ public class ReaderDownloadClient extends AsyncHttpClient {
                 public void onFailure(int statusCode, Header[] headers, byte[] binaryData, Throwable error) {
                     Log.d(TAG+"::download", this.getRequestURI().toString() + " download FAILED\n" +
                             "statusCode : " + statusCode + ", error : " + error.getMessage());
+                    interrupt();
+                    callback.notifyDownloadFailed();
+
                     //TODO 다운로드가 실패했을 경우 중간에 잘라버리는 콜백함수를 구현하면 될듯
                     //TODO HitomiDownloadDataObject에 실패한 페이지 갯수를 적는 란을 만들어서 실패현황을 알려주는 코드도 구현하면 좋을 듯
                 }

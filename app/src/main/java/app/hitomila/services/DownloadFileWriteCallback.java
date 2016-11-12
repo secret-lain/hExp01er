@@ -7,4 +7,5 @@ package app.hitomila.services;
 public interface DownloadFileWriteCallback {
     void notifyPageDownloaded(String imageFileName,byte[] binaryImageData);
     void notifyDownloadCompleted();
+    void notifyDownloadFailed();
 }

@@ -41,6 +41,12 @@ import cz.msebera.android.httpclient.Header;
  * 리스트를 보여주는 액티비티, 메인액티비티이다.
  * 초기화면은 Recently Added, 추후 언어별, 태그(1개)별, 좋아요버튼별 등등 으로 꾸밀 수 있게끔 해둠
  */
+/*
+* note
+* ul class="posts">[\r\n]{1,3}(<li>[^"]*"[^"]*">[^<]*.*[\r\n]{1,3})*
+* Tag page에서 태그 관련 String을 뽑아오는 Regex. 이 후 한번더 걸러야 한다
+*
+* */
 public class IndexActivity extends AppCompatActivity {
     Context mContext;
     AsyncHttpClient httpClient;
@@ -62,43 +68,7 @@ public class IndexActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        //오픈소스인 네비게이션 툴바를 불러온다.
-        PrimaryDrawerItem dummy = new PrimaryDrawerItem();
-        PrimaryDrawerItem initSelecter = new PrimaryDrawerItem().withIdentifier(1).withName("Recent");
-        SecondaryDrawerItem koreanSelecter = new SecondaryDrawerItem().withIdentifier(2).withName("Korean");
-        navigationDrawer = new DrawerBuilder()
-                .withActivity(this)
-                .withTranslucentStatusBar(false)
-                .withActionBarDrawerToggle(true)
-                .addDrawerItems(
-                        //TODO 네비게이션 드로어 메뉴 컨텐츠 이쪽에 삽입
-                        dummy,
-                        initSelecter,
-                        koreanSelecter
-                )
-                .withMultiSelect(false)
-                .withOnDrawerItemClickListener(new Drawer.OnDrawerItemClickListener(){
-                    @Override
-                    public boolean onItemClick(View view, int position, IDrawerItem drawerItem) {
-                        switch(position){
-                            case 1:
-                                setIndex("https://hitomi.la/index-all-", "Recently Added");
-                                break;
-                            case 2:
-                                setIndex("https://hitomi.la/index-korean-", "Korean - Recently Added");
-                                break;
-                            case 3:
-                                setIndex("https://hitomi.la/index-japanese-", "Japanese - Recently Added");
-
-                            default:
-                                return false;
-                        }
-                        navigationDrawer.closeDrawer();
-                        connectUrl(currLocation + currIndex + suffix);
-                        return false;
-                    }
-                })
-                .build();
+        initNavigationDrawer();
         initCustomActionbar();
         initRecyclerView();
         initView();
@@ -108,6 +78,8 @@ public class IndexActivity extends AppCompatActivity {
         //view.loadUrl("https://hitomi.la/reader/992458.html", webViewCallback);
         connectUrl("https://hitomi.la/index-all-1.html");
     }
+
+
 
     @Override
     protected void onDestroy(){
@@ -317,5 +289,59 @@ public class IndexActivity extends AppCompatActivity {
 
 
         actionbar.setCustomView(mCustomView, params);
+    }
+
+    //네비게이션 드로어 세팅
+    private void initNavigationDrawer() {
+        //오픈소스인 네비게이션 툴바를 불러온다.
+        PrimaryDrawerItem dummy = new PrimaryDrawerItem();
+        SecondaryDrawerItem initSelect = new SecondaryDrawerItem().withIdentifier(1).withName("Recent");
+        SecondaryDrawerItem koreanSelect = new SecondaryDrawerItem().withIdentifier(2).withName("Korean");
+        SecondaryDrawerItem japaneseSelect = new SecondaryDrawerItem().withIdentifier(3).withName("Japanese");
+        SecondaryDrawerItem chineseSelect = new SecondaryDrawerItem().withIdentifier(4).withName("Chinese");
+        SecondaryDrawerItem englishSelect = new SecondaryDrawerItem().withIdentifier(5).withName("English");
+
+        navigationDrawer = new DrawerBuilder()
+                .withActivity(this)
+                .withTranslucentStatusBar(false)
+                .withActionBarDrawerToggle(false)
+                .addDrawerItems(
+                        //TODO 네비게이션 드로어 메뉴 컨텐츠 이쪽에 삽입
+                        dummy,
+                        initSelect,
+                        koreanSelect,
+                        japaneseSelect,
+                        chineseSelect,
+                        englishSelect
+                )
+                .withMultiSelect(false)
+                .withOnDrawerItemClickListener(new Drawer.OnDrawerItemClickListener(){
+                    @Override
+                    public boolean onItemClick(View view, int position, IDrawerItem drawerItem) {
+                        switch(position){
+                            case 1:
+                                setIndex("https://hitomi.la/index-all-", "Recently Added");
+                                break;
+                            case 2:
+                                setIndex("https://hitomi.la/index-korean-", "Korean - Recently Added");
+                                break;
+                            case 3:
+                                setIndex("https://hitomi.la/index-japanese-", "Japanese - Recently Added");
+                                break;
+                            case 4:
+                                setIndex("https://hitomi.la/index-chinese-", "Chinese - Recently Added");
+                                break;
+                            case 5:
+                                setIndex("https://hitomi.la/index-english-", "English - Recently Added");
+                                break;
+                            default:
+                                return false;
+                        }
+                        navigationDrawer.closeDrawer();
+                        connectUrl(currLocation + currIndex + suffix);
+                        return false;
+                    }
+                })
+                .build();
     }
 }

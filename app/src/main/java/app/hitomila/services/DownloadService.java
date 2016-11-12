@@ -90,6 +90,15 @@ public class DownloadService extends Service {
                         Toast.makeText(DownloadService.this, dataSet.get(galleryNumber).title + " 다운로드 완료" ,  Toast.LENGTH_SHORT).show();
                         mNotificationManager.notify(galleryNumber,dataSet.get(galleryNumber).notificationBuilder.build());
                     }
+
+                    @Override
+                    public void notifyDownloadFailed() {
+                        dataSet.get(galleryNumber).notificationBuilder.setContentText("다운로드 실패, " + dataSet.get(galleryNumber).maxPages + "페이지 중 "
+                                + dataSet.get(galleryNumber).currentPage + "에서 오류 발생")
+                                .setOngoing(false);
+                        Toast.makeText(DownloadService.this, dataSet.get(plainGalleryUrl).title + "다운로드 실패", Toast.LENGTH_SHORT).show();
+                        mNotificationManager.notify(galleryNumber,dataSet.get(galleryNumber).notificationBuilder.build());
+                    }
                 });
             }
 
