@@ -88,9 +88,9 @@ public class IndexActivity extends AppCompatActivity {
 * */
     @Override
     protected void onDestroy() {
-        super.onDestroy();
         ((NotificationManager)getSystemService(NOTIFICATION_SERVICE)).cancelAll();
         HitomiWebView.getInstance().clear();
+        super.onDestroy();
     }
 
     private void setIndex(String locationString, String title) {

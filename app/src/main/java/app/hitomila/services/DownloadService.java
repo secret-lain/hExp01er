@@ -52,7 +52,8 @@ public class DownloadService extends Service {
     @SuppressWarnings("unchecked")
     public int onStartCommand(Intent intent, int flags, final int startId) {
         if(intent == null)
-            stopSelf();
+            return super.onStartCommand(intent, flags, startId);
+        //stopself 삭제됨
 
         Bundle bundle = intent.getExtras();
         mIntent = intent;
@@ -120,7 +121,7 @@ public class DownloadService extends Service {
 
     @Override
     public void onDestroy() {
-        stopService(mIntent);
+        //stopService(mIntent);
         super.onDestroy();
     }
 
@@ -156,7 +157,7 @@ public class DownloadService extends Service {
                 .setDefaults(Notification.DEFAULT_LIGHTS)
                 .setPriority(Notification.PRIORITY_MAX)
                 .setWhen(System.currentTimeMillis())
-                .setOngoing(true)
+                //.setOngoing(true) 20161114 잠깐 삭제.
                 //.setStyle(new Notification.BigTextStyle().bigText("BigText"))
                 .setContentIntent(resultPendingIntent)
                 .setContentTitle(mangaTitle)
@@ -166,6 +167,11 @@ public class DownloadService extends Service {
         return mBuilder;
     }
 
+    @Override
+    public void onLowMemory() {
+        Crashlytics.log("Service onLowMemory Logged");
+        super.onLowMemory();
+    }
 
     //이미 Javascript가 전부 실행된 후의 데이터이기 때문에 이미지출력 부분도 포함
     private ReaderData getReaderData(String html){

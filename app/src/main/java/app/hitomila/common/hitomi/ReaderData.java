@@ -1,5 +1,9 @@
 package app.hitomila.common.hitomi;
 
+import org.apache.commons.lang3.StringEscapeUtils;
+
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 import java.util.LinkedList;
 import java.util.Queue;
 
@@ -13,9 +17,14 @@ public class ReaderData implements HitomiData {
     public Queue<String> images;
 
     public ReaderData(String _title){//, String _plainUrl
-        title = _title;
-       // plainUrl = _plainUrl;
-        images = new LinkedList<>();
+        try {
+            title = StringEscapeUtils.unescapeHtml4(URLDecoder.decode(_title, "UTF-8"));
+            // plainUrl = _plainUrl;
+            images = new LinkedList<>();
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+
     }
 
     public void addImageUrl(String imageUrl){
