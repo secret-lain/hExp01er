@@ -13,6 +13,7 @@ import android.os.IBinder;
 import android.support.annotation.Nullable;
 import android.widget.Toast;
 
+import com.crashlytics.android.Crashlytics;
 import com.loopj.android.http.AsyncHttpClient;
 import com.loopj.android.http.AsyncHttpResponseHandler;
 
@@ -49,7 +50,10 @@ public class DownloadService extends Service {
 
     @Override
     @SuppressWarnings("unchecked")
-    public int onStartCommand(Intent intent, int flags, int startId) {
+    public int onStartCommand(Intent intent, int flags, final int startId) {
+        if(intent == null)
+            stopSelf();
+
         Bundle bundle = intent.getExtras();
         mIntent = intent;
         final String plainGalleryUrl = bundle.getString("galleryUrl");
@@ -63,7 +67,8 @@ public class DownloadService extends Service {
                 galleryNumber = Integer.parseInt(DownloadServiceDataParser.extractGalleryNumberFromAddress(readerUrl));
                 ReaderData data = getReaderData(new String(responseBody));
 
-                HitomiFileWriter fileWriter = new HitomiFileWriter(DownloadService.this, data);
+                //TODO 20161113 DownloadService.this -> getApplicationContext()
+                HitomiFileWriter fileWriter = new HitomiFileWriter(getApplicationContext(), data);
                 Notification.Builder currNotification = initNotification(galleryNumber, fileWriter.getFilePath(), data.title, data.getImageCount());
                 HitomiDownloadingDataObject item = new HitomiDownloadingDataObject(data, currNotification, galleryNumber);
 
@@ -89,6 +94,7 @@ public class DownloadService extends Service {
                                 .setOngoing(false);
                         Toast.makeText(DownloadService.this, dataSet.get(galleryNumber).title + " 다운로드 완료" ,  Toast.LENGTH_SHORT).show();
                         mNotificationManager.notify(galleryNumber,dataSet.get(galleryNumber).notificationBuilder.build());
+                        stopSelf(startId);
                     }
 
                     @Override
@@ -105,10 +111,17 @@ public class DownloadService extends Service {
             @Override
             public void onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) {
                 //TODO 리더페이지에 접근하는 것 부터 실패했을 경우.
+                Crashlytics.log("DownloadService::ReaderPage Load Failed");
             }
         });
 
         return super.onStartCommand(intent, flags, startId);
+    }
+
+    @Override
+    public void onDestroy() {
+        stopService(mIntent);
+        super.onDestroy();
     }
 
     @Nullable

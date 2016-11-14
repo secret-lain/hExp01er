@@ -29,14 +29,20 @@ public class DownloadServiceDataParser {
             return null;
     }
 
+    /*
+    * 2016-11-14 업데이트.
+    * hitomi.la/galleries/GALLERYNUMBER/파일명인데
+    * 파일명을 짤라옴.
+    * */
     public static String extractImageName(String imageUrl){
-        String regex = "([\\d]+.[\\w]+)$";
+        //String regex = "([\\d]+.[\\w]+)$";
+        String regex = "([^\\/]+.[\\w]+)$";
         Matcher matcher = getMatcher(regex, imageUrl);
 
         if(matcher.find()){
             return matcher.group(1);
         }
-        else throw new RuntimeException("뭐야이거");
+        else throw new RuntimeException("extractImageName throw Error T-T");
     }
 
     public static boolean checkInvalidGalleryNumber(String galleryNumber){

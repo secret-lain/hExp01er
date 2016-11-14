@@ -20,15 +20,13 @@ import com.loopj.android.http.AsyncHttpClient;
 import com.loopj.android.http.AsyncHttpResponseHandler;
 import com.mikepenz.materialdrawer.Drawer;
 import com.mikepenz.materialdrawer.DrawerBuilder;
-import com.mikepenz.materialdrawer.model.DividerDrawerItem;
 import com.mikepenz.materialdrawer.model.PrimaryDrawerItem;
 import com.mikepenz.materialdrawer.model.SecondaryDrawerItem;
 import com.mikepenz.materialdrawer.model.interfaces.IDrawerItem;
 
-import org.w3c.dom.Text;
-
 import java.util.regex.Matcher;
 
+import app.hitomila.common.BackPressCloseHandler;
 import app.hitomila.common.HitomiWebView;
 import app.hitomila.common.WebViewLoadCompletedCallback;
 import app.hitomila.common.exception.wrongHitomiDataException;
@@ -58,6 +56,10 @@ public class IndexActivity extends AppCompatActivity {
     TextView currPageTextView;
     LinearLayoutManager layoutManager;
 
+    BackPressCloseHandler backButtonHandler;
+
+    static int CONNECTURL_MAX = 0;
+    static int CONNECTURL_COUNTOUT = 0;
     int currIndex = 1;
     String currLocation = "https://hitomi.la/index-all-";
     final String suffix = ".html";
@@ -68,6 +70,7 @@ public class IndexActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        backButtonHandler = new BackPressCloseHandler(this);
         initNavigationDrawer();
         initCustomActionbar();
         initRecyclerView();
@@ -79,17 +82,18 @@ public class IndexActivity extends AppCompatActivity {
         connectUrl("https://hitomi.la/index-all-1.html");
     }
 
-
-
+/*
+* 2016-11-14 업데이트.
+* 잦은 에러 발생으로 인해 어플리케이션의 완전 종료시 노티피케이션 전부 삭제.
+* */
     @Override
-    protected void onDestroy(){
-        //
-        //((NotificationManager)getSystemService(NOTIFICATION_SERVICE)).cancelAll();
-        HitomiWebView.getInstance().clear();
+    protected void onDestroy() {
         super.onDestroy();
+        ((NotificationManager)getSystemService(NOTIFICATION_SERVICE)).cancelAll();
+        HitomiWebView.getInstance().clear();
     }
 
-    private void setIndex(String locationString, String title){
+    private void setIndex(String locationString, String title) {
         currLocation = locationString;
         actionBarTitle.setText(title);
 
@@ -97,72 +101,81 @@ public class IndexActivity extends AppCompatActivity {
         currPageTextView.setText(Integer.toString(currIndex));
     }
 
-    private void connectUrl(String url){
+    @Override
+    public void onBackPressed() {
+//        super.onBackPressed();
+        backButtonHandler.onBackPressed();
+    }
+
+    private void connectUrl(String url) {
         final Toast loading = Toast.makeText(mContext, "페이지 로딩중", Toast.LENGTH_LONG);
         final Toast prefixLoading = Toast.makeText(mContext, "이미지서버 접두사 초기화 중..", Toast.LENGTH_LONG);
-//        final Toast completed = Toast.makeText(mContext, "초기화 완료", Toast.LENGTH_SHORT);
         loadingProgress.setVisibility(View.VISIBLE);
         recyclerView.setVisibility(View.GONE);
 
         loading.show();
-        httpClient.get(url, new AsyncHttpResponseHandler() {
-            @Override
-            public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
-                IndexData data = getIndexData(new String(responseBody));
-                adapter.setData(data);
+            httpClient.get(url, new AsyncHttpResponseHandler() {
+                @Override
+                public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
+                    IndexData data = getIndexData(new String(responseBody));
+                    adapter.setData(data);
+                    CONNECTURL_COUNTOUT = 0;
+                    //최초 실행 한번만 한다. prefix를 얻기 위해 index-all-1.html의 맨 앞 망가에 자동접속
+                    //자바스크립트가 실행된 후의 response를 파싱하여 DownloadServiceDataParser.prefix에 넣는다.
+                    if (DownloadServiceDataParser.prefix.equals("")) {
+                        String firstGalleryUrl = data.getDatas()[0].plainUrl;
+                        String firstReaderUrl = DownloadServiceDataParser.galleryUrlToReaderUrl(firstGalleryUrl);
+                        final HitomiWebView webview = HitomiWebView.getInstance();
+                        webview.loadUrl(firstReaderUrl, new WebViewLoadCompletedCallback() {
+                            @Override
+                            public void onCompleted(final String prefix) {
+                                if (prefix.equals(""))
+                                    throw new wrongHitomiDataException("prefix초기화", "왜 안됐지?");
 
-                //최초 실행 한번만 한다. prefix를 얻기 위해 index-all-1.html의 맨 앞 망가에 자동접속
-                //자바스크립트가 실행된 후의 response를 파싱하여 DownloadServiceDataParser.prefix에 넣는다.
-                if(DownloadServiceDataParser.prefix.equals("")){
-                    String firstGalleryUrl = data.getDatas()[0].plainUrl;
-                    String firstReaderUrl = DownloadServiceDataParser.galleryUrlToReaderUrl(firstGalleryUrl);
-                    final HitomiWebView webview = HitomiWebView.getInstance();
-                    webview.loadUrl(firstReaderUrl, new WebViewLoadCompletedCallback() {
+                                runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        prefixLoading.cancel();
+                                        Toast.makeText(mContext, "접두사 초기화 완료 : " + prefix, Toast.LENGTH_SHORT).show();
+                                    }
+                                });
+                            }
+
+                            @Override
+                            public void onStart() {
+                                loading.cancel();
+                                prefixLoading.show();
+                            }
+                        });
+                    }
+                    runOnUiThread(new Runnable() {
                         @Override
-                        public void onCompleted(final String prefix) {
-                            if(prefix.equals(""))
-                                throw new wrongHitomiDataException("prefix초기화", "왜 안됐지?");
-
-                            runOnUiThread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    prefixLoading.cancel();
-                                    Toast.makeText(mContext, "접두사 초기화 완료 : " + prefix, Toast.LENGTH_SHORT).show();
-                                }
-                            });
-                        }
-
-                        @Override
-                        public void onStart() {
+                        public void run() {
                             loading.cancel();
-                            prefixLoading.show();
+                            layoutManager.scrollToPosition(0);
+                            loadingProgress.setVisibility(View.GONE);
+                            adapter.notifyDataSetChanged();
+                            recyclerView.setVisibility(View.VISIBLE);
                         }
                     });
                 }
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        loading.cancel();
-                        layoutManager.scrollToPosition(0);
-                        loadingProgress.setVisibility(View.GONE);
-                        adapter.notifyDataSetChanged();
-                        recyclerView.setVisibility(View.VISIBLE);
-                    }
-                });
-            }
 
-            @Override
-            public void onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) {
-                //index를 띄우지 못했을 경우 무조건 초기상태로 돌아간다
-                Toast.makeText(mContext, "인덱스 페이지 로딩 오류", Toast.LENGTH_SHORT).show();
-                connectUrl("https://hitomi.la/index-all-1.html");
-            }
-        });
+                @Override
+                public void onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) {
+                    //index를 띄우지 못했을 경우 무조건 초기상태로 돌아간다
+                    Toast.makeText(mContext, "인덱스 페이지 로딩 오류, 재시도 횟수 : " + ++CONNECTURL_COUNTOUT, Toast.LENGTH_SHORT).show();
+                    if (CONNECTURL_COUNTOUT >= CONNECTURL_MAX) {
+                        Toast.makeText(mContext, "어플리케이션에 문제가 있습니다. 프로그램을 종료합니다.", Toast.LENGTH_LONG).show();
+                        finish();
+                    } else
+                        connectUrl("https://hitomi.la/index-all-1.html");
+                }
+            });
     }
 
     //TODO 문제가 있어서 몇개는 잘리기도 한다. 나중에 다시 수정하는것으로. {2,4} {1,50} 문제인듯
     //30으로 내려봄 2016-11-05
-    private IndexData getIndexData(String html){
+    private IndexData getIndexData(String html) {
         IndexData result = new IndexData();
 
         String indexCrawlRegex =
@@ -174,7 +187,7 @@ public class IndexActivity extends AppCompatActivity {
         Matcher matcher = DownloadServiceDataParser.getMatcher(indexCrawlRegex, html);
 
 
-        while(matcher.find()){
+        while (matcher.find()) {
             String type = matcher.group(1);
             String plainUrl = matcher.group(2);
             String thumbnailUrl = matcher.group(3);
@@ -188,10 +201,10 @@ public class IndexActivity extends AppCompatActivity {
     }
 
     //여기서 뷰의 리스너나 할당을 하자
-    private void initView(){
-        loadingProgress = (ProgressBar)findViewById(R.id.loadingProgressBar);
+    private void initView() {
+        loadingProgress = (ProgressBar) findViewById(R.id.loadingProgressBar);
 
-        currPageTextView = (TextView)findViewById(R.id.currPageTextView);
+        currPageTextView = (TextView) findViewById(R.id.currPageTextView);
         currPageTextView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -199,19 +212,18 @@ public class IndexActivity extends AppCompatActivity {
                         .title("인덱스 직접입력")
                         .content("이동하려는 페이지 번호 직접 입력")
                         .inputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL)
-                        .input("숫자를 입력하세요", "",new MaterialDialog.InputCallback() {
+                        .input("숫자를 입력하세요", "", new MaterialDialog.InputCallback() {
                             @Override
                             public void onInput(MaterialDialog dialog, CharSequence input) {
-                                try{
+                                try {
                                     int inputedPageNumber = Integer.parseInt(input.toString());
-                                    if(inputedPageNumber >= 1){
+                                    if (inputedPageNumber >= 1) {
                                         currIndex = inputedPageNumber;
                                         currPageTextView.setText(Integer.toString(currIndex));
                                         connectUrl(currLocation + currIndex + suffix);
-                                    }
-                                    else
+                                    } else
                                         Toast.makeText(mContext, "잘못된 숫자형식입니다", Toast.LENGTH_SHORT).show();
-                                }catch(NumberFormatException e){
+                                } catch (NumberFormatException e) {
                                     //딱히 뭘 안해도 되는 구간이다.
                                 }
                             }
@@ -219,21 +231,20 @@ public class IndexActivity extends AppCompatActivity {
             }
         });
         //아래 반투면 레이아웃(리모콘)쪽
-        ImageView leftArrow = (ImageView)findViewById(R.id.leftArrowImageView);
+        ImageView leftArrow = (ImageView) findViewById(R.id.leftArrowImageView);
         leftArrow.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(currIndex > 1){
+                if (currIndex > 1) {
                     currIndex--;
                     connectUrl(currLocation + currIndex + suffix);
                     currPageTextView.setText(Integer.toString(currIndex));
-                }
-                else
+                } else
                     Toast.makeText(mContext, "첫페이지 입니다", Toast.LENGTH_SHORT).show();
             }
         });
 
-        ImageView rightArrow = (ImageView)findViewById(R.id.rightArrowImageView);
+        ImageView rightArrow = (ImageView) findViewById(R.id.rightArrowImageView);
         rightArrow.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -245,8 +256,8 @@ public class IndexActivity extends AppCompatActivity {
     }
 
     //왜인지 모르지만 runOnUiThread가 안먹혀
-    private void initRecyclerView(){
-        recyclerView = (RecyclerView)findViewById(R.id.indexRecyclerView);
+    private void initRecyclerView() {
+        recyclerView = (RecyclerView) findViewById(R.id.indexRecyclerView);
         adapter = new RecyclerViewAdapter(this);//DataSet 연결
         recyclerView.setAdapter(adapter);
         recyclerView.setHasFixedSize(true);
@@ -255,7 +266,7 @@ public class IndexActivity extends AppCompatActivity {
     }
 
     //메인 액티비티의 커스텀 액션바에 대한 설정
-    private void initCustomActionbar(){
+    private void initCustomActionbar() {
         ActionBar actionbar = getSupportActionBar();
 
         //Actionbar의 속성 설정
@@ -281,7 +292,7 @@ public class IndexActivity extends AppCompatActivity {
         toggleImage.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if(!navigationDrawer.isDrawerOpen())
+                if (!navigationDrawer.isDrawerOpen())
                     navigationDrawer.openDrawer();
                 else navigationDrawer.closeDrawer();
             }
@@ -315,10 +326,10 @@ public class IndexActivity extends AppCompatActivity {
                         englishSelect
                 )
                 .withMultiSelect(false)
-                .withOnDrawerItemClickListener(new Drawer.OnDrawerItemClickListener(){
+                .withOnDrawerItemClickListener(new Drawer.OnDrawerItemClickListener() {
                     @Override
                     public boolean onItemClick(View view, int position, IDrawerItem drawerItem) {
-                        switch(position){
+                        switch (position) {
                             case 1:
                                 setIndex("https://hitomi.la/index-all-", "Recently Added");
                                 break;

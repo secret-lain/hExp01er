@@ -22,12 +22,18 @@ public class ReaderDownloadClient extends AsyncHttpClient {
     private String[] allowedContentTypes = new String[]{"image/png", "image/jpeg", "image/gif"};
     private final int CONNECTION = 5;
 
+    /*
+    * 2016-11-14 업데이트.
+    * setLoggingEnabled = false를 통해 Download Progress Log를 없앤다.
+    * (너무 많이떠)
+    * */
     public ReaderDownloadClient(Context context, Queue<String> imageList) {
         mContext = context;
         imageUrlList = imageList;
         this.setTimeout(20000);
         this.setResponseTimeout(20000);
         this.setConnectTimeout(20000);
+        this.setLoggingEnabled(false);
 
         this.setMaxConnections(CONNECTION);
     }

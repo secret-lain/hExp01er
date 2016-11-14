@@ -3,6 +3,7 @@ package app.hitomila;
 import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
+import android.net.ConnectivityManager;
 import android.support.v7.widget.CardView;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
@@ -11,7 +12,6 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
-
 
 import com.bumptech.glide.Glide;
 import com.crashlytics.android.Crashlytics;
@@ -88,13 +88,16 @@ public class RecyclerViewAdapter extends RecyclerView.Adapter<RecyclerViewAdapte
                         .setPermissionListener(new PermissionListener() {
                             @Override
                             public void onPermissionGranted() {
-                                if(dataSet[position].plainUrl != null){
+                                if(((ConnectivityManager)mContext.getSystemService(Context.CONNECTIVITY_SERVICE)).getActiveNetworkInfo() == null){
+                                    Toast.makeText(mContext, "네트워크를 다시 켜주세요 -_-", Toast.LENGTH_SHORT).show();
+                                }
+                                else if(dataSet[position].plainUrl != null){
                                     Toast.makeText(mContext, "다운로드를 시작합니다", Toast.LENGTH_SHORT).show();
                                     Intent intent = new Intent(mContext, DownloadService.class);
                                     intent.putExtra("galleryUrl", dataSet[position].plainUrl);
                                     mContext.startService(intent);
                                 }
-                                else Crashlytics.log(dataSet[position].title + ", " + dataSet[position].plainUrl + " download Data error");
+                                else Crashlytics.log(dataSet[position].title + ", " + dataSet[position].plainUrl + " unexpected download Data error");
                             }
 
                             @Override
