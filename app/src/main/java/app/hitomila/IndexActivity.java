@@ -173,7 +173,6 @@ public class IndexActivity extends AppCompatActivity {
             });
     }
 
-    //TODO 문제가 있어서 몇개는 잘리기도 한다. 나중에 다시 수정하는것으로. {2,4} {1,50} 문제인듯
     //30으로 내려봄 2016-11-05
     private IndexData getIndexData(String html) {
         IndexData result = new IndexData();
