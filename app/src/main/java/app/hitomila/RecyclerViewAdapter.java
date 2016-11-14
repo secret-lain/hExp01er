@@ -18,6 +18,10 @@ import com.crashlytics.android.Crashlytics;
 import com.gun0912.tedpermission.PermissionListener;
 import com.gun0912.tedpermission.TedPermission;
 
+import org.apache.commons.lang3.StringEscapeUtils;
+
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 import java.util.ArrayList;
 
 import app.hitomila.common.hitomi.IndexData;
@@ -71,7 +75,12 @@ public class RecyclerViewAdapter extends RecyclerView.Adapter<RecyclerViewAdapte
     //Listener등 기능삽입
     @Override
     public void onBindViewHolder(ViewHolder holder, final int position) {
-        holder.titleTextView.setText(dataSet[position].title);
+        try {
+            holder.titleTextView.setText(StringEscapeUtils.unescapeHtml4(URLDecoder.decode(dataSet[position].title,"UTF-8")));
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+
         holder.languageTextView.setText(dataSet[position].mangaLangugae);
         holder.typeTextView.setText(dataSet[position].type);
         //글라이드는 비동기로 섬네일을 부른뒤, 리사이징해서(는 안함) 전달한다.
