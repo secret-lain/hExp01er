@@ -23,7 +23,9 @@ import java.util.regex.Matcher;
 
 import app.hitomila.IndexActivity;
 import app.hitomila.R;
+import app.hitomila.common.exception.CrashlyticsLoggingException;
 import app.hitomila.common.exception.htmlParsingException;
+import app.hitomila.common.hitomi.HitomiData;
 import app.hitomila.common.hitomi.HitomiDownloadingDataObject;
 import app.hitomila.common.hitomi.HitomiFileWriter;
 import app.hitomila.common.hitomi.ReaderData;
@@ -35,7 +37,7 @@ import cz.msebera.android.httpclient.Header;
 
 public class DownloadService extends Service {
     //DataSet 은 GalleryNumber(for NotificationID), notification 을 가지며, 현재 진행중인 다운로드 알림들을 표시
-    private HashMap<Integer, HitomiDownloadingDataObject> dataSet;
+    private HashMap<Integer, HitomiDownloadingDataObject> dataSet = new HashMap<>();
     private Notification.Builder mBuilder;
     private NotificationManager mNotificationManager;
     private Intent mIntent;
@@ -44,29 +46,35 @@ public class DownloadService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        dataSet = new HashMap<>();
         mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public int onStartCommand(Intent intent, int flags, final int startId) {
-        if(intent == null)
+        if(intent == null){
             return super.onStartCommand(intent, flags, startId);
+        }
+
         //stopself 삭제됨
+        Crashlytics.log(3, "DownloadService::onStartCommand", intent.toString());
 
         Bundle bundle = intent.getExtras();
         mIntent = intent;
         final String plainGalleryUrl = bundle.getString("galleryUrl");
         final String readerUrl = DownloadServiceDataParser.galleryUrlToReaderUrl(plainGalleryUrl);
 
+        Crashlytics.setString("readerUrl", readerUrl);
         new AsyncHttpClient().get(readerUrl, new AsyncHttpResponseHandler() {
             int galleryNumber;
 
             @Override
             public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
                 galleryNumber = Integer.parseInt(DownloadServiceDataParser.extractGalleryNumberFromAddress(readerUrl));
+                Crashlytics.setInt("galleryNumber", galleryNumber);
+
                 ReaderData data = getReaderData(new String(responseBody));
+                Crashlytics.setString("title", data.title);
 
                 //TODO 20161113 DownloadService.this -> getApplicationContext()
                 HitomiFileWriter fileWriter = new HitomiFileWriter(getApplicationContext(), data);
@@ -95,6 +103,8 @@ public class DownloadService extends Service {
                                 .setOngoing(false);
                         Toast.makeText(DownloadService.this, dataSet.get(galleryNumber).title + " 다운로드 완료" ,  Toast.LENGTH_SHORT).show();
                         mNotificationManager.notify(galleryNumber,dataSet.get(galleryNumber).notificationBuilder.build());
+                        dataSet.remove(galleryNumber);
+                        Crashlytics.log( 1, "DLService::DLCompleted", galleryNumber + ": Downloaded");
                         stopSelf(startId);
                     }
 
@@ -103,8 +113,13 @@ public class DownloadService extends Service {
                         dataSet.get(galleryNumber).notificationBuilder.setContentText("다운로드 실패, " + dataSet.get(galleryNumber).maxPages + "페이지 중 "
                                 + dataSet.get(galleryNumber).currentPage + "에서 오류 발생")
                                 .setOngoing(false);
-                        Toast.makeText(DownloadService.this, dataSet.get(plainGalleryUrl).title + "다운로드 실패", Toast.LENGTH_SHORT).show();
                         mNotificationManager.notify(galleryNumber,dataSet.get(galleryNumber).notificationBuilder.build());
+
+                        Toast.makeText(DownloadService.this, dataSet.get(plainGalleryUrl).title + "다운로드 실패", Toast.LENGTH_SHORT).show();
+                        Crashlytics.log( 1, "DLService::DLFailed", galleryNumber + ": FAILED");
+                        Crashlytics.logException(new CrashlyticsLoggingException((HitomiData)dataSet.get(galleryNumber)));
+
+                        dataSet.remove(galleryNumber);
                     }
                 });
             }
@@ -113,6 +128,7 @@ public class DownloadService extends Service {
             public void onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) {
                 //TODO 리더페이지에 접근하는 것 부터 실패했을 경우.
                 Crashlytics.log("DownloadService::ReaderPage Load Failed");
+                stopSelf(startId);
             }
         });
 
@@ -134,8 +150,6 @@ public class DownloadService extends Service {
     //해당 망가의 진행상황을 확인시켜줄 노티피케이션의 초기화
     //노티피케이션의 고유 ID는 해당 작품의 번호로 한다.(동일 작품을 두번 받지 못하게 하려고)
     private Notification.Builder initNotification(int galleryNumber, String directoryName, String mangaTitle, int maxPages){
-
-
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         File root = new File(directoryName);
         Uri uri = Uri.fromFile(root);
