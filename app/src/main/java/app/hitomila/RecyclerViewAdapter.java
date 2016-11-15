@@ -76,7 +76,7 @@ public class RecyclerViewAdapter extends RecyclerView.Adapter<RecyclerViewAdapte
     @Override
     public void onBindViewHolder(ViewHolder holder, final int position) {
         try {
-            holder.titleTextView.setText(StringEscapeUtils.unescapeHtml4(URLDecoder.decode(dataSet[position].title,"UTF-8")));
+            holder.titleTextView.setText(StringEscapeUtils.unescapeHtml4(URLDecoder.decode(dataSet[position].title.replace("%", "%25"),"UTF-8")));
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
         }

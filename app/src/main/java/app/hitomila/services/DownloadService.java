@@ -110,16 +110,20 @@ public class DownloadService extends Service {
 
                     @Override
                     public void notifyDownloadFailed() {
+                        //TODO 에러 발생시 보통 imageWrite에서 나고있다. 왜 나는지 나중에 Log를 달아보자.
+                        Crashlytics.log( 1, "DLService::DLFailed", galleryNumber + ": FAILED");
+                        Crashlytics.log(dataSet.get(galleryNumber).title);
+
                         dataSet.get(galleryNumber).notificationBuilder.setContentText("다운로드 실패, " + dataSet.get(galleryNumber).maxPages + "페이지 중 "
                                 + dataSet.get(galleryNumber).currentPage + "에서 오류 발생")
                                 .setOngoing(false);
                         mNotificationManager.notify(galleryNumber,dataSet.get(galleryNumber).notificationBuilder.build());
 
-                        Toast.makeText(DownloadService.this, dataSet.get(plainGalleryUrl).title + "다운로드 실패", Toast.LENGTH_SHORT).show();
-                        Crashlytics.log( 1, "DLService::DLFailed", galleryNumber + ": FAILED");
                         Crashlytics.logException(new CrashlyticsLoggingException((HitomiData)dataSet.get(galleryNumber)));
+                        Toast.makeText(DownloadService.this, dataSet.get(galleryNumber).title + "다운로드 실패", Toast.LENGTH_SHORT).show();
 
                         dataSet.remove(galleryNumber);
+                        stopSelf(startId);
                     }
                 });
             }

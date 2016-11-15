@@ -20,6 +20,7 @@ import com.loopj.android.http.AsyncHttpClient;
 import com.loopj.android.http.AsyncHttpResponseHandler;
 import com.mikepenz.materialdrawer.Drawer;
 import com.mikepenz.materialdrawer.DrawerBuilder;
+import com.mikepenz.materialdrawer.model.DividerDrawerItem;
 import com.mikepenz.materialdrawer.model.PrimaryDrawerItem;
 import com.mikepenz.materialdrawer.model.SecondaryDrawerItem;
 import com.mikepenz.materialdrawer.model.interfaces.IDrawerItem;
@@ -41,7 +42,7 @@ import cz.msebera.android.httpclient.Header;
  */
 /*
 * note
-* ul class="posts">[\r\n]{1,3}(<li>[^"]*"[^"]*">[^<]*.*[\r\n]{1,3})*
+*
 * Tag page에서 태그 관련 String을 뽑아오는 Regex. 이 후 한번더 걸러야 한다
 *
 * */
@@ -312,6 +313,10 @@ public class IndexActivity extends AppCompatActivity {
         SecondaryDrawerItem chineseSelect = new SecondaryDrawerItem().withIdentifier(4).withName("Chinese");
         SecondaryDrawerItem englishSelect = new SecondaryDrawerItem().withIdentifier(5).withName("English");
 
+        PrimaryDrawerItem tagSearch = new PrimaryDrawerItem().withIdentifier(1000).withName("태그로 검색");
+        PrimaryDrawerItem artistsSearch = new PrimaryDrawerItem().withIdentifier(1001).withName("작가명으로 검색");
+        PrimaryDrawerItem characterSearch = new PrimaryDrawerItem().withIdentifier(1002).withName("캐릭터명으로 검색");
+
         navigationDrawer = new DrawerBuilder()
                 .withActivity(this)
                 .withTranslucentStatusBar(false)
@@ -323,7 +328,11 @@ public class IndexActivity extends AppCompatActivity {
                         koreanSelect,
                         japaneseSelect,
                         chineseSelect,
-                        englishSelect
+                        englishSelect,
+                        new DividerDrawerItem(),
+                        tagSearch,
+                        artistsSearch,
+                        characterSearch
                 )
                 .withMultiSelect(false)
                 .withOnDrawerItemClickListener(new Drawer.OnDrawerItemClickListener() {
@@ -345,6 +354,12 @@ public class IndexActivity extends AppCompatActivity {
                             case 5:
                                 setIndex("https://hitomi.la/index-english-", "English - Recently Added");
                                 break;
+                            case 1001://tagSearch
+                                break;
+                            case 1002://artistSearch
+                                break;
+                            case 1003://characterSearch
+                                break;
                             default:
                                 return false;
                         }
@@ -354,5 +369,18 @@ public class IndexActivity extends AppCompatActivity {
                     }
                 })
                 .build();
+    }
+
+    /*
+    property 1 = tag, 2 = artist, 3 = characters
+    */
+    //TODO 프로퍼티 입력값 스트링인지 인트인지 체크,
+    private void showSearchDialog(int property){
+        String title;
+
+
+/*        MaterialDialog dialog = new MaterialDialog.Builder(this)
+                .customView(R.layout.activity_main_searchdialog, true)
+                .positiveText("확인")*/
     }
 }
