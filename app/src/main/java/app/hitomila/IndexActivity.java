@@ -2,7 +2,9 @@ package app.hitomila;
 
 import android.app.NotificationManager;
 import android.content.Context;
+import android.net.ConnectivityManager;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
@@ -31,9 +33,11 @@ import app.hitomila.common.BackPressCloseHandler;
 import app.hitomila.common.HitomiWebView;
 import app.hitomila.common.WebViewLoadCompletedCallback;
 import app.hitomila.common.exception.wrongHitomiDataException;
+import app.hitomila.common.hitomi.HitomiTagInformation;
 import app.hitomila.common.hitomi.IndexData;
 import app.hitomila.services.DownloadServiceDataParser;
 import cz.msebera.android.httpclient.Header;
+import io.realm.Realm;
 
 
 /**
@@ -59,7 +63,7 @@ public class IndexActivity extends AppCompatActivity {
 
     BackPressCloseHandler backButtonHandler;
 
-    static int CONNECTURL_MAX = 0;
+    static int CONNECTURL_MAX = 5;
     static int CONNECTURL_COUNTOUT = 0;
     int currIndex = 1;
     String currLocation = "https://hitomi.la/index-all-";
@@ -79,18 +83,49 @@ public class IndexActivity extends AppCompatActivity {
         initView();
 
         httpClient = new AsyncHttpClient();
-        //초기 접속은 이쪽으로. 다되면 리사이클러뷰를 소환
-        //view.loadUrl("https://hitomi.la/reader/992458.html", webViewCallback);
+
+
+        /*
+        * 태그데이터를 초기화한다.
+        * 현재 시간과 최종갱신일을 비교하여 5일 이상 차이가 나면 크롤링을 통한 재갱신을 하며,
+        * 5일 이내에 갱신한 자료가 있담뎐 Realm DB에 있는 정보를 불러온다.
+        * 불러오는 정보는 비동기적으로, TagDataSearcher가 준비되었을때 isReady = true이다.
+        * */
+
+        Realm realm = Realm.getDefaultInstance();
+        HitomiTagInformation information = realm.where(HitomiTagInformation.class).findFirst();
+        long DAY_IN_MS = 1000 * 60 * 60 * 24; // 하루를 ms 로 나타낸 초
+        long TODAY = System.currentTimeMillis() - DAY_IN_MS;
+        if(information == null || information.getUpdatedDate() <= TODAY) {
+            // 첫 구동이거나 갱신일이 지난경우, 갱신일을 오늘로 지정한 후 새 업데이트를 진행한다.
+            realm.deleteAll();
+            information = new HitomiTagInformation();
+            information.setUpdatedDate(System.currentTimeMillis());
+            final HitomiTagInformation finalInformation = information;
+            realm.executeTransaction(new Realm.Transaction() {
+                @Override
+                public void execute(Realm realm) {
+                    realm.copyToRealmOrUpdate(finalInformation);
+                }
+            });
+            TagDataSearcher.update(this);
+        }
+        else{
+            //갱신일도 지나지 않았고, 첫 구동도 아닌 경우 데이터베이스에서 정보를 불러온다.
+            TagDataSearcher.init(this);
+        }
+        realm.close();
+
         connectUrl("https://hitomi.la/index-all-1.html");
     }
 
-/*
-* 2016-11-14 업데이트.
-* 잦은 에러 발생으로 인해 어플리케이션의 완전 종료시 노티피케이션 전부 삭제.
-* */
+    /*
+    * 2016-11-14 업데이트.
+    * 잦은 에러 발생으로 인해 어플리케이션의 완전 종료시 노티피케이션 전부 삭제.
+    * */
     @Override
     protected void onDestroy() {
-        ((NotificationManager)getSystemService(NOTIFICATION_SERVICE)).cancelAll();
+        ((NotificationManager) getSystemService(NOTIFICATION_SERVICE)).cancelAll();
         HitomiWebView.getInstance().clear();
         super.onDestroy();
     }
@@ -109,6 +144,11 @@ public class IndexActivity extends AppCompatActivity {
         backButtonHandler.onBackPressed();
     }
 
+    /**
+     * 해당 url로 접속을 시도한다. ImageAddressPrefix(Global)이 없을 경우 초기화해본다.
+     * 왜 여기에 넣었을까? 그냥 onCreated에 넣었어야 할것같은데.
+     * 일단 잘 돌아가긴 하니까 두자.
+     */
     private void connectUrl(String url) {
         final Toast loading = Toast.makeText(mContext, "페이지 로딩중", Toast.LENGTH_LONG);
         final Toast prefixLoading = Toast.makeText(mContext, "이미지서버 접두사 초기화 중..", Toast.LENGTH_LONG);
@@ -116,63 +156,83 @@ public class IndexActivity extends AppCompatActivity {
         recyclerView.setVisibility(View.GONE);
 
         loading.show();
-            httpClient.get(url, new AsyncHttpResponseHandler() {
-                @Override
-                public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
-                    IndexData data = getIndexData(new String(responseBody));
-                    adapter.setData(data);
-                    CONNECTURL_COUNTOUT = 0;
-                    //최초 실행 한번만 한다. prefix를 얻기 위해 index-all-1.html의 맨 앞 망가에 자동접속
-                    //자바스크립트가 실행된 후의 response를 파싱하여 DownloadServiceDataParser.prefix에 넣는다.
-                    if (DownloadServiceDataParser.prefix.equals("")) {
-                        String firstGalleryUrl = data.getDatas()[0].plainUrl;
-                        String firstReaderUrl = DownloadServiceDataParser.galleryUrlToReaderUrl(firstGalleryUrl);
-                        final HitomiWebView webview = HitomiWebView.getInstance();
-                        webview.loadUrl(firstReaderUrl, new WebViewLoadCompletedCallback() {
-                            @Override
-                            public void onCompleted(final String prefix) {
-                                if (prefix.equals(""))
-                                    throw new wrongHitomiDataException("prefix초기화", "왜 안됐지?");
 
-                                runOnUiThread(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        prefixLoading.cancel();
-                                        Toast.makeText(mContext, "접두사 초기화 완료 : " + prefix, Toast.LENGTH_SHORT).show();
-                                    }
-                                });
-                            }
-
-                            @Override
-                            public void onStart() {
-                                loading.cancel();
-                                prefixLoading.show();
-                            }
-                        });
-                    }
-                    runOnUiThread(new Runnable() {
+        httpClient.get(url, new AsyncHttpResponseHandler() {
+            @Override
+            public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
+                IndexData data = getIndexData(new String(responseBody));
+                adapter.setData(data);
+                CONNECTURL_COUNTOUT = 0;
+                //최초 실행 한번만 한다. prefix를 얻기 위해 index-all-1.html의 맨 앞 망가에 자동접속
+                //자바스크립트가 실행된 후의 response를 파싱하여 DownloadServiceDataParser.prefix에 넣는다.
+                if (DownloadServiceDataParser.prefix.equals("")) {
+                    String firstGalleryUrl = data.getDatas()[0].plainUrl;
+                    String firstReaderUrl = DownloadServiceDataParser.galleryUrlToReaderUrl(firstGalleryUrl);
+                    final HitomiWebView webview = HitomiWebView.getInstance();
+                    webview.loadUrl(firstReaderUrl, new WebViewLoadCompletedCallback() {
                         @Override
-                        public void run() {
+                        public void onCompleted(final String prefix) {
+                            if (prefix.equals("")){
+                                //TODO 접두사 초기화 실패시 어떻게 재실행 할 것인가?
+                                Toast.makeText(mContext, "접두사 초기화 실패.", Toast.LENGTH_SHORT).show();
+                                throw new wrongHitomiDataException("prefix초기화", "왜 안됐지?");
+                            }
+
+
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    prefixLoading.cancel();
+                                    Toast.makeText(mContext, "접두사 초기화 완료 : " + prefix, Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                        }
+
+                        @Override
+                        public void onStart() {
                             loading.cancel();
-                            layoutManager.scrollToPosition(0);
-                            loadingProgress.setVisibility(View.GONE);
-                            adapter.notifyDataSetChanged();
-                            recyclerView.setVisibility(View.VISIBLE);
+                            prefixLoading.show();
                         }
                     });
                 }
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        loading.cancel();
+                        layoutManager.scrollToPosition(0);
+                        loadingProgress.setVisibility(View.GONE);
+                        adapter.notifyDataSetChanged();
+                        recyclerView.setVisibility(View.VISIBLE);
+                    }
+                });
+            }
 
-                @Override
-                public void onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) {
-                    //index를 띄우지 못했을 경우 무조건 초기상태로 돌아간다
+            @Override
+            public void onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) {
+                //index를 띄우지 못했을 경우 무조건 초기상태로 돌아간다
+
+                //어플 실행 후 인터넷을 강제로 끊어서 생긴 경우.
+                if(((ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE)).getActiveNetworkInfo()
+                 == null){
+                    Toast.makeText(mContext, "인터넷을 연결해 주세요. 5초 후 재접속을 시도합니다.", Toast.LENGTH_LONG).show();
+                    new Handler().postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            connectUrl(currLocation + currIndex + suffix);
+                        }
+                    }, 5000);
+                }
+                else{
                     Toast.makeText(mContext, "인덱스 페이지 로딩 오류, 재시도 횟수 : " + ++CONNECTURL_COUNTOUT, Toast.LENGTH_SHORT).show();
                     if (CONNECTURL_COUNTOUT >= CONNECTURL_MAX) {
                         Toast.makeText(mContext, "어플리케이션에 문제가 있습니다. 프로그램을 종료합니다.", Toast.LENGTH_LONG).show();
                         finish();
                     } else
-                        connectUrl("https://hitomi.la/index-all-1.html");
+                        connectUrl(currLocation + currIndex + suffix);
                 }
-            });
+
+            }
+        });
     }
 
     //30으로 내려봄 2016-11-05
@@ -354,11 +414,14 @@ public class IndexActivity extends AppCompatActivity {
                             case 5:
                                 setIndex("https://hitomi.la/index-english-", "English - Recently Added");
                                 break;
-                            case 1001://tagSearch
+                            case 7://tagSearch
+                                Toast.makeText(mContext, TagDataSearcher.getTags().size() + "", Toast.LENGTH_SHORT).show();
                                 break;
-                            case 1002://artistSearch
+                            case 8://artistSearch
+                                Toast.makeText(mContext, TagDataSearcher.getArtists().size() + "", Toast.LENGTH_SHORT).show();
                                 break;
-                            case 1003://characterSearch
+                            case 9://characterSearch
+                                Toast.makeText(mContext, TagDataSearcher.getCharacters().size() + "", Toast.LENGTH_SHORT).show();
                                 break;
                             default:
                                 return false;
@@ -369,18 +432,5 @@ public class IndexActivity extends AppCompatActivity {
                     }
                 })
                 .build();
-    }
-
-    /*
-    property 1 = tag, 2 = artist, 3 = characters
-    */
-    //TODO 프로퍼티 입력값 스트링인지 인트인지 체크,
-    private void showSearchDialog(int property){
-        String title;
-
-
-/*        MaterialDialog dialog = new MaterialDialog.Builder(this)
-                .customView(R.layout.activity_main_searchdialog, true)
-                .positiveText("확인")*/
     }
 }

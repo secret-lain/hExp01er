@@ -6,7 +6,7 @@ import android.app.Notification;
  * Created by admin on 2016-11-04.
  */
 
-public class HitomiDownloadingDataObject {
+public class HitomiDownloadingDataObject implements HitomiData{
     private ReaderData readerData;
 
     public String title;

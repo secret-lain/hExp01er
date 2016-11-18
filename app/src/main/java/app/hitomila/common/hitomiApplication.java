@@ -17,6 +17,8 @@ import com.gun0912.tedpermission.TedPermission;
 import java.util.ArrayList;
 
 import io.fabric.sdk.android.Fabric;
+import io.realm.Realm;
+import io.realm.RealmConfiguration;
 
 /**
  * Created by admin on 2016-11-01.
@@ -62,5 +64,10 @@ public class HitomiApplication extends Application {
 
         Fabric.with(this, new Crashlytics());
         HitomiWebView.init(this);
+        Realm.init(getApplicationContext());
+
+        RealmConfiguration realmConfig = new RealmConfiguration.Builder().build();
+        //Realm.deleteRealm(realmConfig);
+        Realm.setDefaultConfiguration(realmConfig);
     }
 }
