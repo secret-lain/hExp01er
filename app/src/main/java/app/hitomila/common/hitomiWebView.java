@@ -23,12 +23,14 @@ public class HitomiWebView {
         webview = new WebView(applicationContext);
         webview.getSettings().setJavaScriptEnabled(true);
         webview.addJavascriptInterface(new MyJavaScriptInterface(), "HTMLOUT");
+        webview.getSettings().setDatabaseEnabled(true);
         webview.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(WebView view, String url)
             {
                 //이 부분을 실행함으로서 자바스크립트 인터페이스를 실행한다.
                 view.loadUrl("javascript:window.HTMLOUT.processHTML('<head>'+document.getElementsByTagName('html')[0].innerHTML+'</head>');");
+
             }
         });
     }

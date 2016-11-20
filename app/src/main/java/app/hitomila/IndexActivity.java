@@ -33,11 +33,9 @@ import app.hitomila.common.BackPressCloseHandler;
 import app.hitomila.common.HitomiWebView;
 import app.hitomila.common.WebViewLoadCompletedCallback;
 import app.hitomila.common.exception.wrongHitomiDataException;
-import app.hitomila.common.hitomi.HitomiTagInformation;
 import app.hitomila.common.hitomi.IndexData;
 import app.hitomila.services.DownloadServiceDataParser;
 import cz.msebera.android.httpclient.Header;
-import io.realm.Realm;
 
 
 /**
@@ -75,46 +73,13 @@ public class IndexActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-
+        httpClient = new AsyncHttpClient();
         backButtonHandler = new BackPressCloseHandler(this);
         initNavigationDrawer();
         initCustomActionbar();
         initRecyclerView();
         initView();
-
-        httpClient = new AsyncHttpClient();
-
-
-        /*
-        * 태그데이터를 초기화한다.
-        * 현재 시간과 최종갱신일을 비교하여 5일 이상 차이가 나면 크롤링을 통한 재갱신을 하며,
-        * 5일 이내에 갱신한 자료가 있담뎐 Realm DB에 있는 정보를 불러온다.
-        * 불러오는 정보는 비동기적으로, TagDataSearcher가 준비되었을때 isReady = true이다.
-        * */
-
-        Realm realm = Realm.getDefaultInstance();
-        HitomiTagInformation information = realm.where(HitomiTagInformation.class).findFirst();
-        long DAY_IN_MS = 1000 * 60 * 60 * 24; // 하루를 ms 로 나타낸 초
-        long TODAY = System.currentTimeMillis() - DAY_IN_MS;
-        if(information == null || information.getUpdatedDate() <= TODAY) {
-            // 첫 구동이거나 갱신일이 지난경우, 갱신일을 오늘로 지정한 후 새 업데이트를 진행한다.
-            realm.deleteAll();
-            information = new HitomiTagInformation();
-            information.setUpdatedDate(System.currentTimeMillis());
-            final HitomiTagInformation finalInformation = information;
-            realm.executeTransaction(new Realm.Transaction() {
-                @Override
-                public void execute(Realm realm) {
-                    realm.copyToRealmOrUpdate(finalInformation);
-                }
-            });
-            TagDataSearcher.update(this);
-        }
-        else{
-            //갱신일도 지나지 않았고, 첫 구동도 아닌 경우 데이터베이스에서 정보를 불러온다.
-            TagDataSearcher.init(this);
-        }
-        realm.close();
+        TagDataController.init(this);
 
         connectUrl("https://hitomi.la/index-all-1.html");
     }
@@ -163,21 +128,24 @@ public class IndexActivity extends AppCompatActivity {
                 IndexData data = getIndexData(new String(responseBody));
                 adapter.setData(data);
                 CONNECTURL_COUNTOUT = 0;
-                //최초 실행 한번만 한다. prefix를 얻기 위해 index-all-1.html의 맨 앞 망가에 자동접속
-                //자바스크립트가 실행된 후의 response를 파싱하여 DownloadServiceDataParser.prefix에 넣는다.
+
+                /*
+                * 최초 실행 한번만 한다. prefix를 얻기 위해 index-all-1.html의 맨 앞 망가에 자동접속
+                * 자바스크립트가 실행된 후의 response를 파싱하여 DownloadServiceDataParser.prefix에 넣는다.
+                * */
                 if (DownloadServiceDataParser.prefix.equals("")) {
                     String firstGalleryUrl = data.getDatas()[0].plainUrl;
                     String firstReaderUrl = DownloadServiceDataParser.galleryUrlToReaderUrl(firstGalleryUrl);
+
                     final HitomiWebView webview = HitomiWebView.getInstance();
                     webview.loadUrl(firstReaderUrl, new WebViewLoadCompletedCallback() {
                         @Override
                         public void onCompleted(final String prefix) {
-                            if (prefix.equals("")){
+                            if (prefix.equals("")) {
                                 //TODO 접두사 초기화 실패시 어떻게 재실행 할 것인가?
                                 Toast.makeText(mContext, "접두사 초기화 실패.", Toast.LENGTH_SHORT).show();
                                 throw new wrongHitomiDataException("prefix초기화", "왜 안됐지?");
                             }
-
 
                             runOnUiThread(new Runnable() {
                                 @Override
@@ -212,8 +180,8 @@ public class IndexActivity extends AppCompatActivity {
                 //index를 띄우지 못했을 경우 무조건 초기상태로 돌아간다
 
                 //어플 실행 후 인터넷을 강제로 끊어서 생긴 경우.
-                if(((ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE)).getActiveNetworkInfo()
-                 == null){
+                if (((ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE)).getActiveNetworkInfo()
+                        == null) {
                     Toast.makeText(mContext, "인터넷을 연결해 주세요. 5초 후 재접속을 시도합니다.", Toast.LENGTH_LONG).show();
                     new Handler().postDelayed(new Runnable() {
                         @Override
@@ -221,8 +189,7 @@ public class IndexActivity extends AppCompatActivity {
                             connectUrl(currLocation + currIndex + suffix);
                         }
                     }, 5000);
-                }
-                else{
+                } else {
                     Toast.makeText(mContext, "인덱스 페이지 로딩 오류, 재시도 횟수 : " + ++CONNECTURL_COUNTOUT, Toast.LENGTH_SHORT).show();
                     if (CONNECTURL_COUNTOUT >= CONNECTURL_MAX) {
                         Toast.makeText(mContext, "어플리케이션에 문제가 있습니다. 프로그램을 종료합니다.", Toast.LENGTH_LONG).show();
@@ -415,13 +382,13 @@ public class IndexActivity extends AppCompatActivity {
                                 setIndex("https://hitomi.la/index-english-", "English - Recently Added");
                                 break;
                             case 7://tagSearch
-                                Toast.makeText(mContext, TagDataSearcher.getTags().size() + "", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(mContext, TagDataController.getTags().size() + "", Toast.LENGTH_SHORT).show();
                                 break;
                             case 8://artistSearch
-                                Toast.makeText(mContext, TagDataSearcher.getArtists().size() + "", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(mContext, TagDataController.getArtists().size() + "", Toast.LENGTH_SHORT).show();
                                 break;
                             case 9://characterSearch
-                                Toast.makeText(mContext, TagDataSearcher.getCharacters().size() + "", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(mContext, TagDataController.getCharacters().size() + "", Toast.LENGTH_SHORT).show();
                                 break;
                             default:
                                 return false;
