@@ -1,4 +1,4 @@
-package app.hitomila.services;
+package app.hitomila.downloadService;
 
 /**
  * Created by admin on 2016-11-04.

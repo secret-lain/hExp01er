@@ -1,4 +1,4 @@
-package app.hitomila.services;
+package app.hitomila.downloadService;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;

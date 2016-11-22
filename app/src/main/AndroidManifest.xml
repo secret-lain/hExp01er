@@ -16,7 +16,7 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
         <activity
-            android:name=".IndexActivity"
+            android:name=".main.IndexActivity"
             android:theme="@style/MainActivityTheme">
             <intent-filter>
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -26,10 +26,10 @@
         </activity>
 
         <service
-            android:name=".services.DownloadService">
+            android:name=".downloadService.DownloadService">
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
-                android:value=".IndexActivity"/>
+                android:value=".main.IndexActivity"/>
         </service>
         <meta-data
             android:name="io.fabric.ApiKey"

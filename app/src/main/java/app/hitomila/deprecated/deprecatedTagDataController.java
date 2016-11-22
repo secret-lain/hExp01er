@@ -1,4 +1,4 @@
-package app.hitomila;
+package app.hitomila.deprecated;
 
 import android.content.Context;
 import android.os.AsyncTask;
@@ -16,9 +16,8 @@ import java.util.TreeMap;
 import java.util.regex.Matcher;
 
 import app.hitomila.common.exception.CrashlyticsLoggingException;
-import app.hitomila.common.hitomi.HitomiTagData;
-import app.hitomila.common.hitomi.HitomiTagInformation;
-import app.hitomila.services.DownloadServiceDataParser;
+import app.hitomila.common.hitomiObjects.HitomiTagInformation;
+import app.hitomila.downloadService.DownloadServiceDataParser;
 import cz.msebera.android.httpclient.Header;
 import io.realm.Realm;
 import io.realm.RealmResults;
@@ -37,7 +36,7 @@ import io.realm.RealmResults;
  */
 
      //TODO get Hashes 구현하기 + 테스트해보기 + 쓰레드 init 연결하기 + Data Write 구현하기
-     public class TagDataController {
+     public class deprecatedTagDataController {
      static private boolean _isReady = false;
      static private TreeMap<String, String> tags = new TreeMap<>();
      static private TreeMap<String, String> artists = new TreeMap<>();
@@ -89,9 +88,9 @@ import io.realm.RealmResults;
             @Override
             protected Object doInBackground(Object[] params) {
                 final Realm realm = Realm.getDefaultInstance();
-                final RealmResults<HitomiTagData> database = realm.where(HitomiTagData.class).findAll();
+                final RealmResults<deprecatedHitomiTagData> database = realm.where(deprecatedHitomiTagData.class).findAll();
 
-                for (HitomiTagData data : database) {
+                for (deprecatedHitomiTagData data : database) {
                     //1 tags, 2 artists, 3 characters
                     switch (data.getTypeInteger()) {
                         case 1:
@@ -184,7 +183,7 @@ import io.realm.RealmResults;
                             @Override
                             public void onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) {
                                 //어쩔수 없지 뭐
-                                Crashlytics.log(1, "TagDataController", "태그페이지 접속 두번실패. 주소 : " + getRequestURI());
+                                Crashlytics.log(1, "deprecatedTagDataController", "태그페이지 접속 두번실패. 주소 : " + getRequestURI());
                             }
                         });
                     }
@@ -227,7 +226,7 @@ import io.realm.RealmResults;
                     //태그를 찾은 경우.
                     //group1이 주소, group2가 태그키워드가 될 것이다.
                     //데이터베이스에 넣는 동시에 해시맵에도 추가한다.
-                    final HitomiTagData data = new HitomiTagData(second_matcher.group(2), second_matcher.group(1), type);
+                    final deprecatedHitomiTagData data = new deprecatedHitomiTagData(second_matcher.group(2), second_matcher.group(1), type);
                     switch (data.getTypeInteger()) {
                         case 1:
                             tags.put(data.getKeyword(), data.getAddress());

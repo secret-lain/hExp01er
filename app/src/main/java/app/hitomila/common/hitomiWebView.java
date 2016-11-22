@@ -5,7 +5,7 @@ import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
-import app.hitomila.services.DownloadServiceDataParser;
+import app.hitomila.downloadService.DownloadServiceDataParser;
 
 /**
  * Created by admin on 2016-11-01.

@@ -67,7 +67,7 @@ public class HitomiApplication extends Application {
         Realm.init(getApplicationContext());
 
         RealmConfiguration realmConfig = new RealmConfiguration.Builder().build();
-        //Realm.deleteRealm(realmConfig);
+        Realm.deleteRealm(realmConfig);
         Realm.setDefaultConfiguration(realmConfig);
     }
 }

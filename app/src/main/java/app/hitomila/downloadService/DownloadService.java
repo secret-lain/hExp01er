@@ -1,4 +1,4 @@
-package app.hitomila.services;
+package app.hitomila.downloadService;
 
 import android.app.Notification;
 import android.app.NotificationManager;
@@ -21,14 +21,12 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.regex.Matcher;
 
-import app.hitomila.IndexActivity;
 import app.hitomila.R;
 import app.hitomila.common.exception.CrashlyticsLoggingException;
 import app.hitomila.common.exception.htmlParsingException;
-import app.hitomila.common.hitomi.HitomiData;
-import app.hitomila.common.hitomi.HitomiDownloadingDataObject;
-import app.hitomila.common.hitomi.HitomiFileWriter;
-import app.hitomila.common.hitomi.ReaderData;
+import app.hitomila.common.hitomiObjects.HitomiDownloadingDataObject;
+import app.hitomila.common.hitomiObjects.ReaderData;
+import app.hitomila.main.IndexActivity;
 import cz.msebera.android.httpclient.Header;
 
 /**
@@ -87,43 +85,51 @@ public class DownloadService extends Service {
                 //정상적으로 정보를 수신한 후에는 FileWriter에 정보를 넘긴다
                 //다운로드 큐를 돌리는것과 저장하는것은 FileWriter가 해준다.
                 fileWriter.downloadAll(new DownloadNotifyCallback() {
+                    HitomiDownloadingDataObject data = dataSet.get(galleryNumber);
+
                     @Override
                     public void notifyPageDownloaded() {
-                        dataSet.get(galleryNumber).currentPage += 1;
-                        dataSet.get(galleryNumber).notificationBuilder.setContentText(
-                                dataSet.get(galleryNumber).currentPage + " / " + dataSet.get(galleryNumber).maxPages
+                        if(data == null) notifyDownloadFailed();
+
+                        data.currentPage += 1;
+                        data.notificationBuilder.setContentText(
+                                data.currentPage + " / " + data.maxPages
                         );
 
-                        mNotificationManager.notify(galleryNumber, dataSet.get(galleryNumber).notificationBuilder.build());
+                        mNotificationManager.notify(galleryNumber, data.notificationBuilder.build());
                     }
 
                     @Override
                     public void notifyDownloadCompleted() {
-                        dataSet.get(galleryNumber).notificationBuilder.setContentText("다운로드 완료")
+                        data.notificationBuilder.setContentText("다운로드 완료")
                                 .setOngoing(false);
-                        Toast.makeText(DownloadService.this, dataSet.get(galleryNumber).title + " 다운로드 완료" ,  Toast.LENGTH_SHORT).show();
-                        mNotificationManager.notify(galleryNumber,dataSet.get(galleryNumber).notificationBuilder.build());
+                        Toast.makeText(DownloadService.this, data.title + " 다운로드 완료" ,  Toast.LENGTH_SHORT).show();
+                        mNotificationManager.notify(galleryNumber,data.notificationBuilder.build());
                         dataSet.remove(galleryNumber);
                         Crashlytics.log( 1, "DLService::DLCompleted", galleryNumber + ": Downloaded");
-                        stopSelf(startId);
+                        //stopSelf(startId);
                     }
 
                     @Override
                     public void notifyDownloadFailed() {
                         //TODO 에러 발생시 보통 imageWrite에서 나고있다. 왜 나는지 나중에 Log를 달아보자.
-                        Crashlytics.log( 1, "DLService::DLFailed", galleryNumber + ": FAILED");
-                        Crashlytics.log(dataSet.get(galleryNumber).title);
+                        if(data == null){
+                            Crashlytics.log( 1, "DLService::DLFailed", galleryNumber + ": FAILED");
+                            Crashlytics.log("getData returns null");
+                        } else{
+                            Crashlytics.log( 1, "DLService::DLFailed", galleryNumber + ": FAILED");
+                            Crashlytics.log(data.title);
+                            data.notificationBuilder.setContentText("다운로드 실패, " + data.maxPages + "페이지 중 "
+                                    + data.currentPage + "번째에서 오류 발생")
+                                    .setOngoing(false);
+                            mNotificationManager.notify(galleryNumber,data.notificationBuilder.build());
+                        }
 
-                        dataSet.get(galleryNumber).notificationBuilder.setContentText("다운로드 실패, " + dataSet.get(galleryNumber).maxPages + "페이지 중 "
-                                + dataSet.get(galleryNumber).currentPage + "에서 오류 발생")
-                                .setOngoing(false);
-                        mNotificationManager.notify(galleryNumber,dataSet.get(galleryNumber).notificationBuilder.build());
 
-                        Crashlytics.logException(new CrashlyticsLoggingException((HitomiData)dataSet.get(galleryNumber)));
-                        Toast.makeText(DownloadService.this, dataSet.get(galleryNumber).title + "다운로드 실패", Toast.LENGTH_SHORT).show();
-
+                        Crashlytics.logException(new CrashlyticsLoggingException(dataSet.get(galleryNumber)));
+                        Toast.makeText(DownloadService.this, (data==null?"":data.title) + "다운로드 실패", Toast.LENGTH_SHORT).show();
                         dataSet.remove(galleryNumber);
-                        stopSelf(startId);
+                        //stopSelf(startId);
                     }
                 });
             }
@@ -132,7 +138,7 @@ public class DownloadService extends Service {
             public void onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) {
                 //TODO 리더페이지에 접근하는 것 부터 실패했을 경우.
                 Crashlytics.log("DownloadService::ReaderPage Load Failed");
-                stopSelf(startId);
+                //stopSelf(startId);
             }
         });
 

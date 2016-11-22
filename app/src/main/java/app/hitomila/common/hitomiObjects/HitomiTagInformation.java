@@ -1,4 +1,4 @@
-package app.hitomila.common.hitomi;
+package app.hitomila.common.hitomiObjects;
 
 import io.realm.RealmObject;
 import io.realm.annotations.PrimaryKey;

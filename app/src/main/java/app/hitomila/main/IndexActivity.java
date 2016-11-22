@@ -1,22 +1,28 @@
-package app.hitomila;
+package app.hitomila.main;
 
 import android.app.NotificationManager;
 import android.content.Context;
 import android.net.ConnectivityManager;
 import android.os.Bundle;
 import android.os.Handler;
+import android.support.annotation.NonNull;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.text.InputType;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.WindowManager;
+import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.afollestad.materialdialogs.DialogAction;
 import com.afollestad.materialdialogs.MaterialDialog;
 import com.loopj.android.http.AsyncHttpClient;
 import com.loopj.android.http.AsyncHttpResponseHandler;
@@ -27,14 +33,17 @@ import com.mikepenz.materialdrawer.model.PrimaryDrawerItem;
 import com.mikepenz.materialdrawer.model.SecondaryDrawerItem;
 import com.mikepenz.materialdrawer.model.interfaces.IDrawerItem;
 
+import java.util.List;
 import java.util.regex.Matcher;
 
+import app.hitomila.HitomiSearch;
+import app.hitomila.R;
 import app.hitomila.common.BackPressCloseHandler;
 import app.hitomila.common.HitomiWebView;
 import app.hitomila.common.WebViewLoadCompletedCallback;
 import app.hitomila.common.exception.wrongHitomiDataException;
-import app.hitomila.common.hitomi.IndexData;
-import app.hitomila.services.DownloadServiceDataParser;
+import app.hitomila.common.hitomiObjects.IndexData;
+import app.hitomila.downloadService.DownloadServiceDataParser;
 import cz.msebera.android.httpclient.Header;
 
 
@@ -63,9 +72,6 @@ public class IndexActivity extends AppCompatActivity {
 
     static int CONNECTURL_MAX = 5;
     static int CONNECTURL_COUNTOUT = 0;
-    int currIndex = 1;
-    String currLocation = "https://hitomi.la/index-all-";
-    final String suffix = ".html";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -79,9 +85,11 @@ public class IndexActivity extends AppCompatActivity {
         initCustomActionbar();
         initRecyclerView();
         initView();
-        TagDataController.init(this);
+        //deprecatedTagDataController.init(this);
+        HitomiSearch.init(this);
 
-        connectUrl("https://hitomi.la/index-all-1.html");
+        initIndexAndChangeTitle("Recently Added");
+        connectUrl(new ConnectUrlBuilder().getCurrUrl());
     }
 
     /*
@@ -95,12 +103,11 @@ public class IndexActivity extends AppCompatActivity {
         super.onDestroy();
     }
 
-    private void setIndex(String locationString, String title) {
-        currLocation = locationString;
+    private void initIndexAndChangeTitle(String title) {
         actionBarTitle.setText(title);
 
-        currIndex = 1;
-        currPageTextView.setText(Integer.toString(currIndex));
+        new ConnectUrlBuilder().setCurrIndex(1);
+        currPageTextView.setText(Integer.toString(ConnectUrlBuilder.getCurrIndex()));
     }
 
     @Override
@@ -115,6 +122,7 @@ public class IndexActivity extends AppCompatActivity {
      * 일단 잘 돌아가긴 하니까 두자.
      */
     private void connectUrl(String url) {
+        Log.d("connectUrl", url + " -> connection..");
         final Toast loading = Toast.makeText(mContext, "페이지 로딩중", Toast.LENGTH_LONG);
         final Toast prefixLoading = Toast.makeText(mContext, "이미지서버 접두사 초기화 중..", Toast.LENGTH_LONG);
         loadingProgress.setVisibility(View.VISIBLE);
@@ -186,7 +194,7 @@ public class IndexActivity extends AppCompatActivity {
                     new Handler().postDelayed(new Runnable() {
                         @Override
                         public void run() {
-                            connectUrl(currLocation + currIndex + suffix);
+                            connectUrl(ConnectUrlBuilder.getCurrUrl());
                         }
                     }, 5000);
                 } else {
@@ -195,7 +203,7 @@ public class IndexActivity extends AppCompatActivity {
                         Toast.makeText(mContext, "어플리케이션에 문제가 있습니다. 프로그램을 종료합니다.", Toast.LENGTH_LONG).show();
                         finish();
                     } else
-                        connectUrl(currLocation + currIndex + suffix);
+                        connectUrl(ConnectUrlBuilder.getCurrUrl());
                 }
 
             }
@@ -244,11 +252,11 @@ public class IndexActivity extends AppCompatActivity {
                             @Override
                             public void onInput(MaterialDialog dialog, CharSequence input) {
                                 try {
-                                    int inputedPageNumber = Integer.parseInt(input.toString());
-                                    if (inputedPageNumber >= 1) {
-                                        currIndex = inputedPageNumber;
-                                        currPageTextView.setText(Integer.toString(currIndex));
-                                        connectUrl(currLocation + currIndex + suffix);
+                                    int inputCustomIndex = Integer.parseInt(input.toString());
+                                    if (inputCustomIndex >= 1) {
+                                        new ConnectUrlBuilder().setCurrIndex(inputCustomIndex);
+                                        currPageTextView.setText(ConnectUrlBuilder.getCurrIndex());
+                                        connectUrl(ConnectUrlBuilder.getCurrUrl());
                                     } else
                                         Toast.makeText(mContext, "잘못된 숫자형식입니다", Toast.LENGTH_SHORT).show();
                                 } catch (NumberFormatException e) {
@@ -263,10 +271,10 @@ public class IndexActivity extends AppCompatActivity {
         leftArrow.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                int currIndex = ConnectUrlBuilder.getCurrIndex();
                 if (currIndex > 1) {
-                    currIndex--;
-                    connectUrl(currLocation + currIndex + suffix);
-                    currPageTextView.setText(Integer.toString(currIndex));
+                    connectUrl(new ConnectUrlBuilder().decreaseCurrIndex().build());
+                    currPageTextView.setText(Integer.toString(currIndex-1));
                 } else
                     Toast.makeText(mContext, "첫페이지 입니다", Toast.LENGTH_SHORT).show();
             }
@@ -276,9 +284,9 @@ public class IndexActivity extends AppCompatActivity {
         rightArrow.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                currIndex++;
-                connectUrl(currLocation + currIndex + suffix);
-                currPageTextView.setText(Integer.toString(currIndex));
+                int currIndex = ConnectUrlBuilder.getCurrIndex();
+                currPageTextView.setText(Integer.toString(currIndex+1));
+                connectUrl(new ConnectUrlBuilder().increaseCurrIndex().build());
             }
         });
     }
@@ -334,11 +342,13 @@ public class IndexActivity extends AppCompatActivity {
     private void initNavigationDrawer() {
         //오픈소스인 네비게이션 툴바를 불러온다.
         PrimaryDrawerItem dummy = new PrimaryDrawerItem();
-        SecondaryDrawerItem initSelect = new SecondaryDrawerItem().withIdentifier(1).withName("Recent");
+        SecondaryDrawerItem initSelect = new SecondaryDrawerItem().withIdentifier(0).withName("Home");
+        SecondaryDrawerItem indexSelect = new SecondaryDrawerItem().withIdentifier(1).withName("Index");
         SecondaryDrawerItem koreanSelect = new SecondaryDrawerItem().withIdentifier(2).withName("Korean");
         SecondaryDrawerItem japaneseSelect = new SecondaryDrawerItem().withIdentifier(3).withName("Japanese");
         SecondaryDrawerItem chineseSelect = new SecondaryDrawerItem().withIdentifier(4).withName("Chinese");
         SecondaryDrawerItem englishSelect = new SecondaryDrawerItem().withIdentifier(5).withName("English");
+
 
         PrimaryDrawerItem tagSearch = new PrimaryDrawerItem().withIdentifier(1000).withName("태그로 검색");
         PrimaryDrawerItem artistsSearch = new PrimaryDrawerItem().withIdentifier(1001).withName("작가명으로 검색");
@@ -352,6 +362,7 @@ public class IndexActivity extends AppCompatActivity {
                         //TODO 네비게이션 드로어 메뉴 컨텐츠 이쪽에 삽입
                         dummy,
                         initSelect,
+                        indexSelect,
                         koreanSelect,
                         japaneseSelect,
                         chineseSelect,
@@ -365,37 +376,96 @@ public class IndexActivity extends AppCompatActivity {
                 .withOnDrawerItemClickListener(new Drawer.OnDrawerItemClickListener() {
                     @Override
                     public boolean onItemClick(View view, int position, IDrawerItem drawerItem) {
+                        navigationDrawer.closeDrawer();
                         switch (position) {
+                            /*
+                            * 1~5 = Language Change
+                            * 7, 8, 9 = specific index search
+                            * */
                             case 1:
-                                setIndex("https://hitomi.la/index-all-", "Recently Added");
+                                initIndexAndChangeTitle("Recently Added");
+                                connectUrl(new ConnectUrlBuilder().setCurrLocation("index").setCurrLangauage("all").build());
                                 break;
                             case 2:
-                                setIndex("https://hitomi.la/index-korean-", "Korean - Recently Added");
+                                initIndexAndChangeTitle("Index - " + ConnectUrlBuilder.getCurrLocation().replaceFirst("[^:]+:", ""));
+                                connectUrl(new ConnectUrlBuilder().setCurrLangauage("all").build());
                                 break;
                             case 3:
-                                setIndex("https://hitomi.la/index-japanese-", "Japanese - Recently Added");
+                                initIndexAndChangeTitle("Korean - " + ConnectUrlBuilder.getCurrLocation().replaceFirst("[^:]+:", ""));
+                                connectUrl(new ConnectUrlBuilder().setCurrLangauage("korean").build());
                                 break;
                             case 4:
-                                setIndex("https://hitomi.la/index-chinese-", "Chinese - Recently Added");
+                                initIndexAndChangeTitle("Japanese - " + ConnectUrlBuilder.getCurrLocation().replaceFirst("[^:]+:", ""));
+                                connectUrl(new ConnectUrlBuilder().setCurrLangauage("japanese").build());
                                 break;
                             case 5:
-                                setIndex("https://hitomi.la/index-english-", "English - Recently Added");
+                                initIndexAndChangeTitle("Chinese - " + ConnectUrlBuilder.getCurrLocation().replaceFirst("[^:]+:", ""));
+                                connectUrl(new ConnectUrlBuilder().setCurrLangauage("chinese").build());
                                 break;
-                            case 7://tagSearch
-                                Toast.makeText(mContext, TagDataController.getTags().size() + "", Toast.LENGTH_SHORT).show();
+                            case 6:
+                                initIndexAndChangeTitle("English - " + ConnectUrlBuilder.getCurrLocation().replaceFirst("[^:]+:", ""));
+                                connectUrl(new ConnectUrlBuilder().setCurrLangauage("english").build());
                                 break;
-                            case 8://artistSearch
-                                Toast.makeText(mContext, TagDataController.getArtists().size() + "", Toast.LENGTH_SHORT).show();
-                                break;
-                            case 9://characterSearch
-                                Toast.makeText(mContext, TagDataController.getCharacters().size() + "", Toast.LENGTH_SHORT).show();
-                                break;
+                            case 8://tagSearch
+                                searchMode("tag");
+                                return false;
+                            case 9://artistSearch
+                                searchMode("artist");
+                                return false;
+                            case 10://characterSearch
+                                searchMode("character");
+                                return false;
                             default:
                                 return false;
                         }
-                        navigationDrawer.closeDrawer();
-                        connectUrl(currLocation + currIndex + suffix);
                         return false;
+                    }
+
+                    private void searchMode(final String type){
+                        if(HitomiSearch.isReady()){
+                            final List<String> tagList = HitomiSearch.getTagList(type);
+                            if(tagList == null){
+                                Toast.makeText(mContext, "태그별 검색에 문제가있습니다. 재실행해 주세요.", Toast.LENGTH_SHORT).show();
+                                return;
+                            }
+                            MaterialDialog searchDialog = new MaterialDialog.Builder(mContext)
+                                    .title("키워드입력")
+                                    .customView(R.layout.activity_main_searchdialog, true)
+                                    .positiveText("확인")
+                                    .negativeText("취소")
+                                    .onPositive(new MaterialDialog.SingleButtonCallback() {
+                                        @Override
+                                        public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
+                                            View view = dialog.getCustomView();
+                                            AutoCompleteTextView searchText = (AutoCompleteTextView)view.findViewById(R.id.autoCompleteTextView);
+
+                                            String listString = searchText.getText().toString();
+
+                                            if(!tagList.contains(listString)){
+                                                Toast.makeText(mContext, "잘못된 태그입니다.", Toast.LENGTH_SHORT).show();
+                                            }else{
+                                                listString = listString.replaceFirst(":[ ]+", ":");
+                                                searchText.setText(listString);
+                                                connectUrl(new ConnectUrlBuilder().setCurrLocation(type + "/" + listString).build());
+                                                String title = ConnectUrlBuilder.getCurrLanguage().replaceFirst("all","Index") + " - " + ConnectUrlBuilder.getCurrLocation().replaceFirst("[^:]+:", "");
+                                                initIndexAndChangeTitle(title.substring(0,1).toUpperCase() + title.substring(1,title.length()));
+                                            }
+                                        }
+                                    })
+                                    .build();
+                            //setSoftInputMode는 화면이 잘려도 자동완성 드롭다운에 스크롤을 넣기 위함
+                            searchDialog.show();
+                            searchDialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+
+                            //Dialog 내 AutoCompleteTextView 세팅
+                            View view = searchDialog.getCustomView();
+                            AutoCompleteTextView searchText = (AutoCompleteTextView)view.findViewById(R.id.autoCompleteTextView);
+                            searchText.setThreshold(1);
+                            ArrayAdapter<String> adapter = new ArrayAdapter<>(view.getContext(), R.layout.support_simple_spinner_dropdown_item,tagList);
+                            searchText.setAdapter(adapter);
+                        } else{
+                            Toast.makeText(mContext, "태그별 검색이 준비중입니다.", Toast.LENGTH_SHORT).show();
+                        }
                     }
                 })
                 .build();

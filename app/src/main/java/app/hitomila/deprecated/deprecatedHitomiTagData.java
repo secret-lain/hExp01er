@@ -1,4 +1,4 @@
-package app.hitomila.common.hitomi;
+package app.hitomila.deprecated;
 
 import io.realm.RealmObject;
 import io.realm.annotations.Ignore;
@@ -12,7 +12,7 @@ import io.realm.annotations.PrimaryKey;
  * type 3 = characters
  */
 
-public class HitomiTagData extends RealmObject {
+public class deprecatedHitomiTagData extends RealmObject {
     @Ignore
     private String domain = "https://hitomi.la";
 
@@ -23,8 +23,8 @@ public class HitomiTagData extends RealmObject {
     @PrimaryKey
     private String keyword;
 
-    public HitomiTagData(){}
-    public HitomiTagData(String keyword, String address, int type){
+    public deprecatedHitomiTagData(){}
+    public deprecatedHitomiTagData(String keyword, String address, int type){
         this.keyword = keyword;
         this.address = address;
         this.type = type;

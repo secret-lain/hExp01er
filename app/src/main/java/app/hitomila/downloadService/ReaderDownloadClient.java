@@ -1,4 +1,4 @@
-package app.hitomila.services;
+package app.hitomila.downloadService;
 
 import android.content.Context;
 import android.util.Log;
@@ -6,20 +6,25 @@ import android.util.Log;
 import com.loopj.android.http.AsyncHttpClient;
 import com.loopj.android.http.BinaryHttpResponseHandler;
 
+import java.util.LinkedList;
 import java.util.Queue;
 
 import cz.msebera.android.httpclient.Header;
 
 /**
  * Created by admin on 2016-11-02.
+ * ReaderPage 에서 추출된 imageList를 가진채 생성되는 클래스.
+ * imageList에 포함된 이미지주소에 전부 접근하여 다운로드한다.
+ *
+ * HitomiFileWriter와 종속성이 있다.
  */
 
 public class ReaderDownloadClient extends AsyncHttpClient {
     private final String TAG = "ADownload::";
     private Context mContext;
-    private final Queue<String> imageUrlList;
+    private Queue<String> imageUrlList = new LinkedList<>();
     private String[] allowedContentTypes = new String[]{"image/png", "image/jpeg", "image/gif"};
-    private final int CONNECTION = 5;
+    private final int CONNECTION = 10;
 
     /*
     * 2016-11-14 업데이트.
@@ -29,11 +34,9 @@ public class ReaderDownloadClient extends AsyncHttpClient {
     public ReaderDownloadClient(Context context, Queue<String> imageList) {
         mContext = context;
         imageUrlList = imageList;
-        this.setTimeout(20000);
-        this.setResponseTimeout(20000);
-        this.setConnectTimeout(20000);
+        this.setTimeout(60000);
+        this.setMaxRetriesAndTimeout(3, 60000);
         this.setLoggingEnabled(false);
-
         this.setMaxConnections(CONNECTION);
     }
 

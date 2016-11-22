@@ -1,4 +1,4 @@
-package app.hitomila;
+package app.hitomila.main;
 
 import android.Manifest;
 import android.content.Context;
@@ -24,8 +24,9 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.util.ArrayList;
 
-import app.hitomila.common.hitomi.IndexData;
-import app.hitomila.services.DownloadService;
+import app.hitomila.R;
+import app.hitomila.common.hitomiObjects.IndexData;
+import app.hitomila.downloadService.DownloadService;
 
 /**
  * Created by admin on 2016-11-01.

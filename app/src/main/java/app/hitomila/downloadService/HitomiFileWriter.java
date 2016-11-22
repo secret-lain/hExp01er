@@ -1,4 +1,4 @@
-package app.hitomila.common.hitomi;
+package app.hitomila.downloadService;
 
 import android.content.Context;
 import android.os.Environment;
@@ -11,9 +11,7 @@ import java.io.IOException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import app.hitomila.services.DownloadFileWriteCallback;
-import app.hitomila.services.DownloadNotifyCallback;
-import app.hitomila.services.ReaderDownloadClient;
+import app.hitomila.common.hitomiObjects.ReaderData;
 
 /**
  * Created by admin on 2016-10-12.
@@ -60,18 +58,20 @@ public class HitomiFileWriter {
 
             @Override
             public void notifyDownloadCompleted() {
+                downloader.interrupt();
                 callback.notifyDownloadCompleted();
             }
 
             @Override
             public void notifyDownloadFailed() {
+                downloader.interrupt();
                 callback.notifyDownloadFailed();
             }
         });
     }
 
     //저장될 파일명, 이미지데이터
-    public synchronized boolean writeImage(String imageName, byte[] binary){
+    public boolean writeImage(String imageName, byte[] binary){
         imageName = parseFileNameToTwoDigits(imageName);
         File image = new File(filePath, imageName);
         FileOutputStream oStream = null;

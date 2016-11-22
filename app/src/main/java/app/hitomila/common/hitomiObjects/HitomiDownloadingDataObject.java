@@ -1,4 +1,4 @@
-package app.hitomila.common.hitomi;
+package app.hitomila.common.hitomiObjects;
 
 import android.app.Notification;
 
